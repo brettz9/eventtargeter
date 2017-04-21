@@ -168,26 +168,26 @@
   });
 
   var ShimCustomEvent = function CustomEvent (type) {
-    var eventInitDict = arguments[1];
+    var evInit = arguments[1];
     var _ev = arguments[2];
-    ShimEvent.call(this, type, eventInitDict, _ev);
+    ShimEvent.call(this, type, evInit, _ev);
     this[Symbol.toStringTag] = 'CustomEvent';
     this.toString = function () {
       return '[object CustomEvent]';
     };
-    var _evCfg = evCfg.get(this);
-    eventInitDict = eventInitDict || {};
+    // var _evCfg = evCfg.get(this);
+    evInit = evInit || {};
     this.initCustomEvent(type, evInit.bubbles, evInit.cancelable, 'detail' in evInit ? evInit.detail : null);
   };
   Object.defineProperty(ShimCustomEvent.prototype, 'constructor', {
-      enumerable: false,
-      writable: true,
-      configurable: true,
-      value: ShimCustomEvent
+    enumerable: false,
+    writable: true,
+    configurable: true,
+    value: ShimCustomEvent
   });
   ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable, detail) {
     if (!(this instanceof ShimCustomEvent)) {
-        throw new TypeError('Illegal invocation');
+      throw new TypeError('Illegal invocation');
     }
     var _evCfg = evCfg.get(this);
     ShimCustomEvent.call(this, type, {bubbles: bubbles, cancelable: cancelable, detail: detail}, arguments[4]);
@@ -200,9 +200,9 @@
       _evCfg.detail = detail;
     }
     Object.defineProperty(this, 'detail', {
-        get: function () {
-            return _evCfg.detail;
-        }
+      get: function () {
+        return _evCfg.detail;
+      }
     });
   };
   ShimCustomEvent[Symbol.toStringTag] = 'Function';
@@ -217,7 +217,7 @@
   });
   Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype); // TODO: IDL needs but reported as slow!
   Object.defineProperty(ShimCustomEvent, 'prototype', {
-      writable: false
+    writable: false
   });
 
   function copyEvent (ev) {
@@ -298,7 +298,11 @@
       customOptions = customOptions || {};
       // Todo: Make into event properties?
       this._defaultSync = customOptions.defaultSync;
-      this._extraProperties = customOptions.extraProperties;
+      this._extraProperties = customOptions.extraProperties || [];
+      if (customOptions.legacyOutputDidListenersThrowFlag) { // IndexedDB
+        this._legacyOutputDidListenersThrowCheck = true;
+        this._extraProperties.push('__legacyOutputDidListenersThrowError');
+      }
     },
     dispatchEvent: function (ev) {
       return this._dispatchEvent(ev, true);
@@ -320,7 +324,7 @@
         eventCopy = copyEvent(ev);
         _evCfg = evCfg.get(eventCopy);
         _evCfg._dispatched = true;
-        (this._extraProperties || []).forEach(function (prop) {
+        this._extraProperties.forEach(function (prop) {
           if (prop in ev) {
             eventCopy[prop] = ev[prop]; // Todo: Put internal to `ShimEvent`?
           }
@@ -438,7 +442,7 @@
         if (i === dummyIPos && typeof onListener === 'function') {
           // We don't splice this in as could be overwritten; executes here per
           //  https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handlers-14
-          this.tryCatch(function () {
+          this.tryCatch(eventCopy, function () {
             var ret = onListener.call(eventCopy.currentTarget, eventCopy);
             if (ret === false) {
               eventCopy.preventDefault();
@@ -456,7 +460,7 @@
           (!capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.BUBBLING_PHASE))
         ) {
           var listener = listenerObj.listener;
-          this.tryCatch(function () {
+          this.tryCatch(eventCopy, function () {
             listener.call(eventCopy.currentTarget, eventCopy);
           });
           if (once) {
@@ -464,7 +468,7 @@
           }
         }
       }, this);
-      this.tryCatch(function () {
+      this.tryCatch(eventCopy, function () {
         var onListener = checkOnListeners ? me['on' + type] : null;
         if (typeof onListener === 'function' && listenersByType.length < 2) {
           var ret = onListener.call(eventCopy.currentTarget, eventCopy); // Won't have executed if too short
@@ -476,7 +480,7 @@
 
       return !eventCopy.defaultPrevented;
     },
-    tryCatch: function (cb) {
+    tryCatch: function (ev, cb) {
       try {
         // Per MDN: Exceptions thrown by event handlers are reported
         //  as uncaught exceptions; the event handlers run on a nested
@@ -484,19 +488,21 @@
         //  exceptions do not propagate to the caller.
         cb();
       } catch (err) {
-        this.triggerErrorEvent(err);
+        this.triggerErrorEvent(err, ev);
       }
     },
-    triggerErrorEvent: function (err) {
+    triggerErrorEvent: function (err, ev) {
       var error = err;
       if (typeof err === 'string') {
         error = new Error('Uncaught exception: ' + err);
       }
 
       var triggerGlobalErrorEvent;
+      var useNodeImpl = false;
       if (typeof window === 'undefined' || typeof ErrorEvent === 'undefined' || (
           window && typeof window === 'object' && !window.dispatchEvent)
       ) {
+        useNodeImpl = true;
         triggerGlobalErrorEvent = function () {
           setTimeout(function () { // Node won't be able to catch in this way if we throw in the main thread
             // console.log(err); // Should we auto-log for user?
@@ -515,7 +521,7 @@
           //    if (window.onerror) window.onerror(error.message, err.fileName, err.lineNumber, error.columnNumber, error);
 
           // `ErrorEvent` properly triggers `window.onerror` and `window.addEventListener('error')` handlers
-          var ev = new ErrorEvent('error', {
+          var errEv = new ErrorEvent('error', {
             error: err,
             message: error.message || '',
             // We can't get the actually useful user's values!
@@ -523,21 +529,30 @@
             lineno: error.lineNumber || 0,
             colno: error.columnNumber || 0
           });
-          window.dispatchEvent(ev);
+          window.dispatchEvent(errEv);
           // console.log(err); // Should we auto-log for user?
         };
       }
-      if (this.__userErrorEventHandler) {
-        this.__userErrorEventHandler(error, triggerGlobalErrorEvent);
-      } else {
-        triggerGlobalErrorEvent();
+
+      // Todo: This really should always run here but as we can't set the global
+      //   `window` (e.g., using jsdom) since `setGlobalVars` becomes unable to
+      //   shim `indexedDB` in such a case currently (apparently due to
+      //   <https://github.com/axemclion/IndexedDBShim/issues/280>), we can't
+      //   avoid the above Node implementation (which, while providing some
+      //   fallback mechanism, is unstable)
+      if (!useNodeImpl || !this._legacyOutputDidListenersThrowCheck) triggerGlobalErrorEvent();
+
+      // See https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke and
+      //  https://github.com/w3c/IndexedDB/issues/140 (also https://github.com/w3c/IndexedDB/issues/49 )
+      if (this._legacyOutputDidListenersThrowCheck) {
+        ev.__legacyOutputDidListenersThrowError = error;
       }
     }
   });
   EventTarget.prototype[Symbol.toStringTag] = 'EventTargetPrototype';
 
   Object.defineProperty(EventTarget, 'prototype', {
-      writable: false
+    writable: false
   });
 
   var ShimEventTarget = EventTarget;
@@ -550,6 +565,12 @@
       return new EventTarget();
     }
   };
+
+  EventTarget.ShimEvent = ShimEvent;
+  EventTarget.ShimCustomEvent = ShimCustomEvent;
+  EventTarget.ShimDOMException = ShimDOMException;
+  EventTarget.ShimEventTarget = EventTarget;
+  EventTarget.EventTargetFactory = EventTargetFactory;
 
   // Todo: Move to own library (but allowing WeakMaps to be passed in for sharing here)
 

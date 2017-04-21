@@ -1,4 +1,4 @@
-/*globals expect*/
+/* globals expect, ShimEventTarget */
 /* eslint-env node, mocha */
 var testTypesArr;
 if (typeof Event !== 'undefined') {
@@ -6,15 +6,17 @@ if (typeof Event !== 'undefined') {
 } else {
   testTypesArr = ['polyfill'];
 }
+var EventTarget = ShimEventTarget;
 
 testTypesArr.forEach(function (evClass) {
   function newEvent (type, evInit) {
     return (evClass === 'nativeEvent'
       ? new Event(type, evInit) // This event will either be the native or, for Node, our exported shim
-      : new EventTarget.EventPolyfill(type, evInit)); // This event will either be the native or, for Node, our exported shim
+      : new EventTarget.ShimEvent(type, evInit)); // This event will either be the native or, for Node, our exported shim
   }
 
   function Car () {}
+  Car.prototype = EventTarget.EventTargetFactory.createInstance();
   Car.prototype.start = function (init) {
     var ev = newEvent('start', init);
     this.dispatchEvent(ev);
@@ -23,7 +25,6 @@ testTypesArr.forEach(function (evClass) {
     var ev = newEvent(type, init);
     this.dispatchEvent(ev);
   };
-  Object.assign(Car.prototype, EventTarget.prototype);
 
   var capturedCategories = [];
   var bubbledCategories = [];
@@ -42,6 +43,7 @@ testTypesArr.forEach(function (evClass) {
       this.children.push(childTree);
     }, this);
   }
+  CategoryTree.prototype = EventTarget.EventTargetFactory.createInstance();
   CategoryTree.prototype.capture = function () {
     var ev = newEvent('capt', {cancelable: true});
     this.dispatchEvent(ev);
@@ -53,7 +55,6 @@ testTypesArr.forEach(function (evClass) {
   CategoryTree.prototype.__getParent = function () {
     return this._parent || null;
   };
-  Object.assign(CategoryTree.prototype, EventTarget.prototype);
 
   describe('EventTarget (' + evClass + ')', function () {
     beforeEach(function () {
@@ -354,8 +355,8 @@ testTypesArr.forEach(function (evClass) {
               return parent;
             }
           };
-          Object.assign(parent, EventTarget.prototype);
-          Object.assign(child, EventTarget.prototype);
+          Object.setPrototypeOf(parent, EventTarget.EventTargetFactory.createInstance());
+          Object.setPrototypeOf(child, EventTarget.EventTargetFactory.createInstance());
           var caught1 = false;
           parent.addEventListener('type1', function () {
             caught1 = true;
@@ -437,9 +438,9 @@ testTypesArr.forEach(function (evClass) {
           var caught1 = false;
           var caught2 = false;
           var caught3 = false;
-          Object.assign(grandparent, EventTarget.prototype);
-          Object.assign(parent, EventTarget.prototype);
-          Object.assign(child, EventTarget.prototype);
+          Object.setPrototypeOf(grandparent, EventTarget.EventTargetFactory.createInstance());
+          Object.setPrototypeOf(parent, EventTarget.EventTargetFactory.createInstance());
+          Object.setPrototypeOf(child, EventTarget.EventTargetFactory.createInstance());
           grandparent.addEventListener('type1', function (e) {
             caught1 = true;
             expect(e.target).equal(child);
@@ -615,8 +616,8 @@ testTypesArr.forEach(function (evClass) {
             return parent;
           }
         };
-        Object.assign(parent, EventTarget.prototype);
-        Object.assign(child, EventTarget.prototype);
+        Object.setPrototypeOf(parent, EventTarget.EventTargetFactory.createInstance());
+        Object.setPrototypeOf(child, EventTarget.EventTargetFactory.createInstance());
         var caught1 = false;
         var caught2 = false;
         child.addLateEventListener('type1', function () {
@@ -708,8 +709,8 @@ testTypesArr.forEach(function (evClass) {
             return parent;
           }
         };
-        Object.assign(parent, EventTarget.prototype);
-        Object.assign(child, EventTarget.prototype);
+        Object.setPrototypeOf(parent, EventTarget.EventTargetFactory.createInstance());
+        Object.setPrototypeOf(child, EventTarget.EventTargetFactory.createInstance());
         var caught1 = false;
         var caught2 = false;
         child.__setOptions({defaultSync: true});
@@ -936,8 +937,8 @@ testTypesArr.forEach(function (evClass) {
             return parent;
           }
         };
-        Object.assign(parent, EventTarget.prototype);
-        Object.assign(child, EventTarget.prototype);
+        Object.setPrototypeOf(parent, EventTarget.EventTargetFactory.createInstance());
+        Object.setPrototypeOf(child, EventTarget.EventTargetFactory.createInstance());
         var caught1 = false;
         var caught2 = false;
         var ct = 0;
@@ -1057,7 +1058,7 @@ testTypesArr.forEach(function (evClass) {
           if (ct === 0) {
             expect(err.message).to.equal('Uncaught exception: Oops');
           } else {
-            expect(err.message).to.equal('Uncaught exception: Oops again');
+            expect(err.message).to.equal('Oops again');
             expect(ct).to.equal(1);
             if (typeof window !== 'undefined') {
               expect(ct2).to.equal(2);
@@ -1075,7 +1076,7 @@ testTypesArr.forEach(function (evClass) {
             if (ct2 === 0) {
               expect(msg).to.equal('Uncaught exception: Oops');
             } else {
-              expect(msg).to.equal('Uncaught exception: Oops again');
+              expect(msg).to.equal('Oops again');
               expect(ct2).to.equal(1);
             }
             ct2++;
@@ -1094,53 +1095,55 @@ testTypesArr.forEach(function (evClass) {
         car.addEventListener('start', func2);
         car.start();
       });
-      it('should trigger `__userErrorEventHandler`', function (done) {
-        function handler () {
-          expect(true).to.be.false;
-          if (typeof window !== 'undefined') {
-            window.removeEventListener('error', handler);
-          }
-          done();
-          return;
-        }
-        if (typeof window === 'undefined') {
-          process.on('uncaughtException', handler);
-        } else {
-          window.onerror = function (msg) {
-            expect(true).to.be.false;
-          };
-          window.addEventListener('error', handler);
-        }
-
-        var car = new Car();
-        var func = function () {
-          throw 'Oops'; // eslint-disable-line no-throw-literal
-        };
-        var func2 = function () {
-          throw new Error('Oops again');
-        };
-        var errCt = 0;
-        car.__userErrorEventHandler = function (errorObj, triggerGlobalErrorEventCb) {
-          errCt++;
-          if (errCt > 2) {
-            return;
-          }
-          if (errCt === 1) {
-            expect(errorObj.message).to.equal('Uncaught exception: Oops');
-          } else {
-            expect(errorObj.message).to.equal('Uncaught exception: Oops again');
+      if (evClass !== 'nativeEvent') {
+        it('should set `__legacyOutputDidListenersThrowError`', function (done) {
+          function handler () {
             if (typeof window !== 'undefined') {
               window.removeEventListener('error', handler);
             }
-            done();
+            return;
           }
-        };
-        car.addEventListener('start1', func);
-        car.addEventListener('start1', func2);
+          if (typeof window === 'undefined') {
+            process.on('uncaughtException', handler);
+          } else {
+            window.onerror = function (msg) {
+            };
+            window.addEventListener('error', handler);
+          }
 
-        var ev = newEvent('start1');
-        car.dispatchEvent(ev);
-      });
+          var car = new Car();
+          var func = function () {
+            throw 'Oops'; // eslint-disable-line no-throw-literal
+          };
+          var func2 = function () {
+            throw new Error('Oops again');
+          };
+          var errCt = 0;
+          car.__userErrorEventHandler = function (errorObj) {
+            errCt++;
+            if (errCt > 2) {
+              return;
+            }
+            if (errCt === 1) {
+              expect(errorObj.message).to.equal('Uncaught exception: Oops');
+            } else {
+              expect(errorObj.message).to.equal('Uncaught exception: Oops again');
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('error', handler);
+              }
+              done();
+            }
+          };
+          car.addEventListener('start1', func);
+          car.addEventListener('start1', func2);
+          car.__setOptions({legacyOutputDidListenersThrowFlag: true});
+
+          var ev = newEvent('start1');
+          car.dispatchEvent(ev);
+          expect(ev.__legacyOutputDidListenersThrowError instanceof Error).to.equal(true);
+          done();
+        });
+      }
     });
   });
 });
