@@ -3,12 +3,12 @@
 <title>EventTarget Demo</title>
 <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon" />
 
-<script src="../EventTarget.js"></script>
-<script>
+<script type="module">
+	import EventTarget from '../EventTarget.js';
 
 	// Adding events to custom object
 
-	var Car = function () {
+	const Car = function () {
 		this.start = function () {
 			this.dispatchEvent({type: 'start', message: 'vroom vroom!'});
 		};
@@ -18,7 +18,7 @@
 
 	// Using events
 
-	var car = new Car();
+	const car = new Car();
 
 	car.addEventListener('start', function (event) {
 		alert(event.message);
