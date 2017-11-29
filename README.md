@@ -1,7 +1,15 @@
-# eventtarget
+# eventtargeter
 
 Add familiar, standard JavaScript event handling methods for custom objects based on
 [EventTarget](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget).
+
+Based on original code from [mrdoob](https://github.com/mrdoob/eventdispatcher.js) and
+[ShareIt-project](https://github.com/ShareIt-project/EventTarget.js).
+
+Supports stricter API requirements and a number of additional methods to mimic
+`EventTarget`.
+
+With move to ES6 Modules, currently regressed to browser only (no Node).
 
 ## Installation
 
@@ -18,7 +26,7 @@ npm install
 ```
 
 ```js
-var EventTarget = require('eventtarget');
+const EventTarget = require('eventtarget');
 ```
 
 ## Usage
@@ -28,7 +36,7 @@ var EventTarget = require('eventtarget');
 
 // Adding events to custom object
 
-var Car = function () {
+const Car = function () {
   this.start = function () {
     this.dispatchEvent({type: 'start', message: 'vroom vroom!'});
   };
@@ -38,7 +46,7 @@ Object.assign(Car.prototype, EventTarget.prototype);
 
 // Using events
 
-var car = new Car();
+const car = new Car();
 
 car.addEventListener('start', function (event) {
   alert(event.message);
