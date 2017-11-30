@@ -9,14 +9,20 @@ Based on original code from [mrdoob](https://github.com/mrdoob/eventdispatcher.j
 Supports stricter API requirements and a number of additional methods to mimic
 `EventTarget`.
 
-With move to ES6 Modules, currently regressed to browser only (no Node).
-
 ## Installation
 
 ### Browser
 
 ```html
 <script src="EventTarget.js"></script>
+```
+
+or
+
+```js
+import {
+    EventTargetFactory, ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException
+} from './node_modules/eventtargeter/EventTarget.js';
 ```
 
 ### Node

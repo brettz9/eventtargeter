@@ -1,9 +1,4 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global.EventTargeter = {})));
-}(this, (function (exports) { 'use strict';
-
+let ShimDOMException;
 const phases = {
     NONE: 0,
     CAPTURING_PHASE: 1,
@@ -13,14 +8,13 @@ const phases = {
 
 if (typeof DOMException === 'undefined') {
     // Todo: Better polyfill (if even needed here)
-    exports.ShimDOMException = function DOMException(msg, name) {
-        // No need for `toString` as same as for `Error`
+    ShimDOMException = function DOMException (msg, name) { // No need for `toString` as same as for `Error`
         const err = new Error(msg);
         err.name = name;
         return err;
     };
 } else {
-    exports.ShimDOMException = DOMException;
+    ShimDOMException = DOMException;
 }
 
 const ev = new WeakMap();
@@ -32,8 +26,7 @@ const evCfg = new WeakMap();
 * native event properties anyways in order to properly set `target`, etc.
 * @note The regular DOM method `dispatchEvent` won't work with this polyfill as it expects a native event
 */
-const ShimEvent = function Event(type) {
-    // eslint-disable-line no-native-reassign
+const ShimEvent = function Event (type) { // eslint-disable-line no-native-reassign
     // For WebIDL checks of function's `length`, we check `arguments` for the optional arguments
     this[Symbol.toStringTag] = 'Event';
     this.toString = () => {
@@ -58,31 +51,40 @@ const ShimEvent = function Event(type) {
     ev.set(this, _ev);
     evCfg.set(this, _evCfg);
     this.initEvent(type, evInit.bubbles, evInit.cancelable);
-    Object.defineProperties(this, ['target', 'currentTarget', 'eventPhase', 'defaultPrevented'].reduce((obj, prop) => {
-        obj[prop] = {
-            get() {
-                return (/* prop in _evCfg && */_evCfg[prop] !== undefined ? _evCfg[prop] : prop in _ev ? _ev[prop] :
-                    // Defaults
-                    prop === 'eventPhase' ? 0 : prop === 'defaultPrevented' ? false : null
-                );
-            }
-        };
-        return obj;
-    }, {}));
+    Object.defineProperties(this,
+        ['target', 'currentTarget', 'eventPhase', 'defaultPrevented'].reduce((obj, prop) => {
+            obj[prop] = {
+                get () {
+                    return (/* prop in _evCfg && */ _evCfg[prop] !== undefined) ? _evCfg[prop] : (
+                        prop in _ev ? _ev[prop] : (
+                            // Defaults
+                            prop === 'eventPhase' ? 0 : (prop === 'defaultPrevented' ? false : null)
+                        )
+                    );
+                }
+            };
+            return obj;
+        }, {})
+    );
     const props = [
-    // Event
-    'type', 'bubbles', 'cancelable', // Defaults to false
-    'isTrusted', 'timeStamp', 'initEvent',
-    // Other event properties (not used by our code)
-    'composedPath', 'composed'];
+        // Event
+        'type',
+        'bubbles', 'cancelable', // Defaults to false
+        'isTrusted', 'timeStamp',
+        'initEvent',
+        // Other event properties (not used by our code)
+        'composedPath', 'composed'
+    ];
     if (this.toString() === '[object CustomEvent]') {
         props.push('detail', 'initCustomEvent');
     }
 
     Object.defineProperties(this, props.reduce((obj, prop) => {
         obj[prop] = {
-            get() {
-                return prop in _evCfg ? _evCfg[prop] : prop in _ev ? _ev[prop] : ['bubbles', 'cancelable', 'composed'].includes(prop) ? false : undefined;
+            get () {
+                return prop in _evCfg ? _evCfg[prop] : (prop in _ev ? _ev[prop] : (
+                    ['bubbles', 'cancelable', 'composed'].includes(prop) ? false : undefined
+                ));
             }
         };
         return obj;
@@ -97,11 +99,10 @@ ShimEvent.prototype.preventDefault = function () {
     const _evCfg = evCfg.get(this);
     if (this.cancelable && !_evCfg._passive) {
         _evCfg.defaultPrevented = true;
-        if (typeof _ev.preventDefault === 'function') {
-            // Prevent any predefined defaults
+        if (typeof _ev.preventDefault === 'function') { // Prevent any predefined defaults
             _ev.preventDefault();
         }
-    }
+    };
 };
 ShimEvent.prototype.stopImmediatePropagation = function () {
     const _evCfg = evCfg.get(this);
@@ -111,8 +112,7 @@ ShimEvent.prototype.stopPropagation = function () {
     const _evCfg = evCfg.get(this);
     _evCfg._stopPropagation = true;
 };
-ShimEvent.prototype.initEvent = function (type, bubbles, cancelable) {
-    // Chrome currently has function length 1 only but WebIDL says 3
+ShimEvent.prototype.initEvent = function (type, bubbles, cancelable) { // Chrome currently has function length 1 only but WebIDL says 3
     // const bubbles = arguments[1];
     // const cancelable = arguments[2];
     const _evCfg = evCfg.get(this);
@@ -129,20 +129,20 @@ ShimEvent.prototype.initEvent = function (type, bubbles, cancelable) {
         _evCfg.cancelable = cancelable;
     }
 };
-['type', 'target', 'currentTarget'].forEach(prop => {
+['type', 'target', 'currentTarget'].forEach((prop) => {
     Object.defineProperty(ShimEvent.prototype, prop, {
         enumerable: true,
         configurable: true,
-        get() {
+        get () {
             throw new TypeError('Illegal invocation');
         }
     });
 });
-['eventPhase', 'defaultPrevented', 'bubbles', 'cancelable', 'timeStamp'].forEach(prop => {
+['eventPhase', 'defaultPrevented', 'bubbles', 'cancelable', 'timeStamp'].forEach((prop) => {
     Object.defineProperty(ShimEvent.prototype, prop, {
         enumerable: true,
         configurable: true,
-        get() {
+        get () {
             throw new TypeError('Illegal invocation');
         }
     });
@@ -164,7 +164,7 @@ Object.defineProperty(ShimEvent, 'prototype', {
     writable: false
 });
 
-const ShimCustomEvent = function CustomEvent(type) {
+const ShimCustomEvent = function CustomEvent (type) {
     let evInit = arguments[1];
     const _ev = arguments[2];
     ShimEvent.call(this, type, evInit, _ev);
@@ -174,7 +174,12 @@ const ShimCustomEvent = function CustomEvent(type) {
     };
     // var _evCfg = evCfg.get(this);
     evInit = evInit || {};
-    this.initCustomEvent(type, evInit.bubbles, evInit.cancelable, 'detail' in evInit ? evInit.detail : null);
+    this.initCustomEvent(
+        type,
+        evInit.bubbles,
+        evInit.cancelable,
+        'detail' in evInit ? evInit.detail : null
+    );
 };
 Object.defineProperty(ShimCustomEvent.prototype, 'constructor', {
     enumerable: false,
@@ -199,7 +204,7 @@ ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable,
         _evCfg.detail = detail;
     }
     Object.defineProperty(this, 'detail', {
-        get() {
+        get () {
             return _evCfg.detail;
         }
     });
@@ -210,7 +215,7 @@ Object.setPrototypeOf(ShimCustomEvent, ShimEvent); // TODO: IDL needs but report
 Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
     enumerable: true,
     configurable: true,
-    get() {
+    get () {
         throw new TypeError('Illegal invocation');
     }
 });
@@ -219,38 +224,40 @@ Object.defineProperty(ShimCustomEvent, 'prototype', {
     writable: false
 });
 
-function copyEvent(ev) {
+function copyEvent (ev) {
     if ('detail' in ev) {
-        return new ShimCustomEvent(ev.type, { bubbles: ev.bubbles, cancelable: ev.cancelable, detail: ev.detail }, ev);
+        return new ShimCustomEvent(
+            ev.type, {bubbles: ev.bubbles, cancelable: ev.cancelable, detail: ev.detail}, ev
+        );
     }
-    return new ShimEvent(ev.type, { bubbles: ev.bubbles, cancelable: ev.cancelable }, ev);
+    return new ShimEvent(ev.type, {bubbles: ev.bubbles, cancelable: ev.cancelable}, ev);
 }
 
-function getListenersOptions(listeners, type, options) {
+function getListenersOptions (listeners, type, options) {
     let listenersByType = listeners[type];
     if (listenersByType === undefined) listeners[type] = listenersByType = [];
-    options = typeof options === 'boolean' ? { capture: options } : options || {};
+    options = typeof options === 'boolean' ? {capture: options} : (options || {});
     const stringifiedOptions = JSON.stringify(options);
-    const listenersByTypeOptions = listenersByType.filter(obj => {
+    const listenersByTypeOptions = listenersByType.filter((obj) => {
         return stringifiedOptions === JSON.stringify(obj.options);
     });
-    return { listenersByTypeOptions: listenersByTypeOptions, options: options, listenersByType: listenersByType };
+    return {listenersByTypeOptions: listenersByTypeOptions, options: options, listenersByType: listenersByType};
 }
 
 const methods = {
-    addListener(listeners, listener, type, options) {
+    addListener (listeners, listener, type, options) {
         const listenerOptions = getListenersOptions(listeners, type, options);
         const listenersByTypeOptions = listenerOptions.listenersByTypeOptions;
         options = listenerOptions.options;
         const listenersByType = listenerOptions.listenersByType;
 
-        if (listenersByTypeOptions.some(l => {
+        if (listenersByTypeOptions.some((l) => {
             return l.listener === listener;
         })) return;
-        listenersByType.push({ listener: listener, options: options });
+        listenersByType.push({listener: listener, options: options});
     },
 
-    removeListener(listeners, listener, type, options) {
+    removeListener (listeners, listener, type, options) {
         const listenerOptions = getListenersOptions(listeners, type, options);
         const listenersByType = listenerOptions.listenersByType;
         const stringifiedOptions = JSON.stringify(listenerOptions.options);
@@ -264,16 +271,16 @@ const methods = {
         });
     },
 
-    hasListener(listeners, listener, type, options) {
+    hasListener (listeners, listener, type, options) {
         const listenerOptions = getListenersOptions(listeners, type, options);
         const listenersByTypeOptions = listenerOptions.listenersByTypeOptions;
-        return listenersByTypeOptions.some(l => {
+        return listenersByTypeOptions.some((l) => {
             return l.listener === listener;
         });
     }
 };
 
-function EventTarget() {
+function EventTarget () {
     throw new TypeError('Illegal constructor');
 }
 
@@ -283,14 +290,12 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
             const options = arguments[2]; // We keep the listener `length` as per WebIDL
             if (arguments.length < 2) throw new TypeError('2 or more arguments required');
             if (typeof type !== 'string') {
-                throw new exports.ShimDOMException('UNSPECIFIED_EVENT_TYPE_ERR', 'UNSPECIFIED_EVENT_TYPE_ERR');
+                throw new ShimDOMException('UNSPECIFIED_EVENT_TYPE_ERR', 'UNSPECIFIED_EVENT_TYPE_ERR');
             }
-            if (listener.handleEvent) {
-                listener = listener.handleEvent.bind(listener);
-            }
+            if (listener.handleEvent) { listener = listener.handleEvent.bind(listener); }
             const arrStr = '_' + listenerType.toLowerCase() + (listenerType === '' ? 'l' : 'L') + 'isteners';
             if (!this[arrStr]) {
-                Object.defineProperty(this, arrStr, { value: {} });
+                Object.defineProperty(this, arrStr, {value: {}});
             }
             return methods[method + 'Listener'](this[arrStr], listener, type, options);
         };
@@ -299,31 +304,30 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
 }, {}));
 
 Object.assign(EventTarget.prototype, {
-    __setOptions(customOptions) {
+    __setOptions (customOptions) {
         customOptions = customOptions || {};
         // Todo: Make into event properties?
         this._defaultSync = customOptions.defaultSync;
         this._extraProperties = customOptions.extraProperties || [];
-        if (customOptions.legacyOutputDidListenersThrowFlag) {
-            // IndexedDB
+        if (customOptions.legacyOutputDidListenersThrowFlag) { // IndexedDB
             this._legacyOutputDidListenersThrowCheck = true;
             this._extraProperties.push('__legacyOutputDidListenersThrowError');
         }
     },
-    dispatchEvent(ev) {
+    dispatchEvent (ev) {
         return this._dispatchEvent(ev, true);
     },
-    _dispatchEvent(ev, setTarget) {
-        ['early', '', 'late', 'default'].forEach(listenerType => {
+    _dispatchEvent (ev, setTarget) {
+        ['early', '', 'late', 'default'].forEach((listenerType) => {
             const arrStr = '_' + listenerType + (listenerType === '' ? 'l' : 'L') + 'isteners';
             if (!this[arrStr]) {
-                Object.defineProperty(this, arrStr, { value: {} });
+                Object.defineProperty(this, arrStr, {value: {}});
             }
         });
 
         let _evCfg = evCfg.get(ev);
         if (_evCfg && setTarget && _evCfg._dispatched) {
-            throw new exports.ShimDOMException('The object is in an invalid state.', 'InvalidStateError');
+            throw new ShimDOMException('The object is in an invalid state.', 'InvalidStateError');
         }
 
         let eventCopy;
@@ -333,26 +337,25 @@ Object.assign(EventTarget.prototype, {
             eventCopy = copyEvent(ev);
             _evCfg = evCfg.get(eventCopy);
             _evCfg._dispatched = true;
-            this._extraProperties.forEach(prop => {
+            this._extraProperties.forEach((prop) => {
                 if (prop in ev) {
                     eventCopy[prop] = ev[prop]; // Todo: Put internal to `ShimEvent`?
                 }
             });
         }
-        const { type } = eventCopy;
+        const {type} = eventCopy;
 
-        function finishEventDispatch() {
+        function finishEventDispatch () {
             _evCfg.eventPhase = phases.NONE;
             _evCfg.currentTarget = null;
             delete _evCfg._children;
         }
-        function invokeDefaults() {
+        function invokeDefaults () {
             // Ignore stopPropagation from defaults
             _evCfg._stopImmediatePropagation = undefined;
             _evCfg._stopPropagation = undefined;
             // We check here for whether we should invoke since may have changed since timeout (if late listener prevented default)
-            if (!eventCopy.defaultPrevented || !_evCfg.cancelable) {
-                // 2nd check should be redundant
+            if (!eventCopy.defaultPrevented || !_evCfg.cancelable) { // 2nd check should be redundant
                 _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke default listeners
                 eventCopy.target.invokeCurrentListeners(eventCopy.target._defaultListeners, eventCopy, type);
             }
@@ -382,62 +385,62 @@ Object.assign(EventTarget.prototype, {
         if (setTarget) _evCfg.target = this;
 
         switch (eventCopy.eventPhase) {
-            default:case phases.NONE:
+        default: case phases.NONE:
 
-                _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
-                this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
-                if (!this.__getParent) {
-                    _evCfg.eventPhase = phases.AT_TARGET;
-                    return this._dispatchEvent(eventCopy, false);
-                }
-
-                let par = this;
-                let root = this;
-                while (par.__getParent && (par = par.__getParent()) !== null) {
-                    if (!_evCfg._children) {
-                        _evCfg._children = [];
-                    }
-                    _evCfg._children.push(root);
-                    root = par;
-                }
-                root._defaultSync = this._defaultSync;
-                _evCfg.eventPhase = phases.CAPTURING_PHASE;
-                return root._dispatchEvent(eventCopy, false);
-            case phases.CAPTURING_PHASE:
-                if (_evCfg._stopPropagation) {
-                    return continueEventDispatch();
-                }
-                this.invokeCurrentListeners(this._listeners, eventCopy, type);
-                const child = _evCfg._children && _evCfg._children.length && _evCfg._children.pop();
-                if (!child || child === eventCopy.target) {
-                    _evCfg.eventPhase = phases.AT_TARGET;
-                }
-                if (child) child._defaultSync = this._defaultSync;
-                return (child || this)._dispatchEvent(eventCopy, false);
-            case phases.AT_TARGET:
-                if (_evCfg._stopPropagation) {
-                    return continueEventDispatch();
-                }
-                this.invokeCurrentListeners(this._listeners, eventCopy, type, true);
-                if (!_evCfg.bubbles) {
-                    return continueEventDispatch();
-                }
-                _evCfg.eventPhase = phases.BUBBLING_PHASE;
+            _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
+            this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
+            if (!this.__getParent) {
+                _evCfg.eventPhase = phases.AT_TARGET;
                 return this._dispatchEvent(eventCopy, false);
-            case phases.BUBBLING_PHASE:
-                if (_evCfg._stopPropagation) {
-                    return continueEventDispatch();
+            }
+
+            let par = this;
+            let root = this;
+            while (par.__getParent && (par = par.__getParent()) !== null) {
+                if (!_evCfg._children) {
+                    _evCfg._children = [];
                 }
-                const parent = this.__getParent && this.__getParent();
-                if (!parent) {
-                    return continueEventDispatch();
-                }
-                parent.invokeCurrentListeners(parent._listeners, eventCopy, type, true);
-                parent._defaultSync = this._defaultSync;
-                return parent._dispatchEvent(eventCopy, false);
+                _evCfg._children.push(root);
+                root = par;
+            }
+            root._defaultSync = this._defaultSync;
+            _evCfg.eventPhase = phases.CAPTURING_PHASE;
+            return root._dispatchEvent(eventCopy, false);
+        case phases.CAPTURING_PHASE:
+            if (_evCfg._stopPropagation) {
+                return continueEventDispatch();
+            }
+            this.invokeCurrentListeners(this._listeners, eventCopy, type);
+            const child = _evCfg._children && _evCfg._children.length && _evCfg._children.pop();
+            if (!child || child === eventCopy.target) {
+                _evCfg.eventPhase = phases.AT_TARGET;
+            }
+            if (child) child._defaultSync = this._defaultSync;
+            return (child || this)._dispatchEvent(eventCopy, false);
+        case phases.AT_TARGET:
+            if (_evCfg._stopPropagation) {
+                return continueEventDispatch();
+            }
+            this.invokeCurrentListeners(this._listeners, eventCopy, type, true);
+            if (!_evCfg.bubbles) {
+                return continueEventDispatch();
+            }
+            _evCfg.eventPhase = phases.BUBBLING_PHASE;
+            return this._dispatchEvent(eventCopy, false);
+        case phases.BUBBLING_PHASE:
+            if (_evCfg._stopPropagation) {
+                return continueEventDispatch();
+            }
+            const parent = this.__getParent && this.__getParent();
+            if (!parent) {
+                return continueEventDispatch();
+            }
+            parent.invokeCurrentListeners(parent._listeners, eventCopy, type, true);
+            parent._defaultSync = this._defaultSync;
+            return parent._dispatchEvent(eventCopy, false);
         }
     },
-    invokeCurrentListeners(listeners, eventCopy, type, checkOnListeners) {
+    invokeCurrentListeners (listeners, eventCopy, type, checkOnListeners) {
         const _evCfg = evCfg.get(eventCopy);
         _evCfg.currentTarget = this;
 
@@ -467,7 +470,10 @@ Object.assign(EventTarget.prototype, {
 
             _evCfg._passive = passive;
 
-            if (capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.CAPTURING_PHASE || eventCopy.eventPhase === phases.AT_TARGET || !capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.BUBBLING_PHASE) {
+            if ((capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.CAPTURING_PHASE) ||
+                (eventCopy.eventPhase === phases.AT_TARGET ||
+                (!capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.BUBBLING_PHASE))
+            ) {
                 const listener = listenerObj.listener;
                 this.tryCatch(eventCopy, () => {
                     listener.call(eventCopy.currentTarget, eventCopy);
@@ -489,7 +495,7 @@ Object.assign(EventTarget.prototype, {
 
         return !eventCopy.defaultPrevented;
     },
-    tryCatch(ev, cb) {
+    tryCatch (ev, cb) {
         try {
             // Per MDN: Exceptions thrown by event handlers are reported
             //    as uncaught exceptions; the event handlers run on a nested
@@ -500,7 +506,7 @@ Object.assign(EventTarget.prototype, {
             this.triggerErrorEvent(err, ev);
         }
     },
-    triggerErrorEvent(err, ev) {
+    triggerErrorEvent (err, ev) {
         let error = err;
         if (typeof err === 'string') {
             error = new Error('Uncaught exception: ' + err);
@@ -508,11 +514,12 @@ Object.assign(EventTarget.prototype, {
 
         let triggerGlobalErrorEvent;
         let useNodeImpl = false;
-        if (typeof window === 'undefined' || typeof ErrorEvent === 'undefined' || window && typeof window === 'object' && !window.dispatchEvent) {
+        if (typeof window === 'undefined' || typeof ErrorEvent === 'undefined' || (
+            window && typeof window === 'object' && !window.dispatchEvent
+        )) {
             useNodeImpl = true;
             triggerGlobalErrorEvent = () => {
-                setTimeout(() => {
-                    // Node won't be able to catch in this way if we throw in the main thread
+                setTimeout(() => { // Node won't be able to catch in this way if we throw in the main thread
                     // console.log(err); // Should we auto-log for user?
                     throw error; // Let user listen to `process.on('uncaughtException', (err) => {});`
                 });
@@ -565,8 +572,8 @@ Object.defineProperty(EventTarget, 'prototype', {
 
 const ShimEventTarget = EventTarget;
 const EventTargetFactory = {
-    createInstance(customOptions) {
-        function EventTarget() {
+    createInstance (customOptions) {
+        function EventTarget () {
             this.__setOptions(customOptions);
         }
         EventTarget.prototype = ShimEventTarget.prototype;
@@ -576,15 +583,11 @@ const EventTargetFactory = {
 
 EventTarget.ShimEvent = ShimEvent;
 EventTarget.ShimCustomEvent = ShimCustomEvent;
-EventTarget.ShimDOMException = exports.ShimDOMException;
+EventTarget.ShimDOMException = ShimDOMException;
 EventTarget.ShimEventTarget = EventTarget;
 EventTarget.EventTargetFactory = EventTargetFactory;
 
-exports.EventTargetFactory = EventTargetFactory;
-exports.ShimEventTarget = EventTarget;
-exports.ShimEvent = ShimEvent;
-exports.ShimCustomEvent = ShimCustomEvent;
+// Todo: Move to own library (but allowing WeakMaps to be passed in for sharing here)
 
-Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
+export {EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent,
+    ShimCustomEvent, ShimDOMException};
