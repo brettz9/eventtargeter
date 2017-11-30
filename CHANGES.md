@@ -1,3 +1,7 @@
+# 0.2.2
+
+- Build: Properly apply Babel
+
 # 0.2.1
 
 - npm: Add omitted `module` property
