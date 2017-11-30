@@ -1,3 +1,7 @@
+# 0.2.1
+
+- npm: Add omitted `module` property
+
 # 0.2.0
 
 - Linting: `.remarkrc`

@@ -1,8 +1,9 @@
 {
   "name": "eventtargeter",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "W3C JavaScript events for custom objects",
   "main": "EventTarget.js",
+  "module": "EventTarget-es6.js",
   "scripts": {
     "eslint": "eslint tests/tests.js && eslint tests/_node-tests.js && eslint EventTarget-es6.js",
     "build": "rollup -c",
