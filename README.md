@@ -14,15 +14,21 @@ Supports stricter API requirements and a number of additional methods to mimic
 ### Browser
 
 ```html
-<script src="EventTarget.js"></script>
+<script src="node_modules/eventtargeter/EventTarget.js"></script>
 ```
 
-or
+```js
+const {
+    EventTargetFactory, ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException
+} = EventTargeter;
+```
+
+or just:
 
 ```js
 import {
     EventTargetFactory, ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException
-} from './node_modules/eventtargeter/EventTarget.js';
+} from './node_modules/eventtargeter/EventTarget-es6.js';
 ```
 
 ### Node
