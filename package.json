@@ -1,6 +1,6 @@
 {
   "name": "eventtargeter",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "W3C JavaScript events for custom objects",
   "main": "EventTarget.js",
   "module": "EventTarget-es6.js",

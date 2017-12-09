@@ -1,3 +1,7 @@
+# 0.3.1
+
+- Fix `.npmignore`
+
 # 0.3.0
 
 - npm: Use `babel-preset-env` instead of `babel-env` (problems on Travis
