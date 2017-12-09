@@ -1,6 +1,6 @@
 {
   "name": "eventtargeter",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "W3C JavaScript events for custom objects",
   "main": "EventTarget.js",
   "module": "EventTarget-es6.js",
@@ -33,7 +33,7 @@
   "dependencies": {},
   "devDependencies": {
     "babel-core": "^6.26.0",
-    "babel-env": "^2.4.1",
+    "babel-preset-env": "^1.6.1",
     "babel-plugin-external-helpers": "^6.22.0",
     "chai": "4.1.2",
     "eslint": "4.13.0",

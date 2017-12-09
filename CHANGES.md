@@ -1,3 +1,10 @@
+# 0.3.0
+
+- npm: Use `babel-preset-env` instead of `babel-env` (problems on Travis
+    due to rebuilding babelrc file?)
+- Build: Add yarn.lock
+
+
 # 0.2.2
 
 - Build: Properly apply Babel
