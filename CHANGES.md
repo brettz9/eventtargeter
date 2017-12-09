@@ -2,7 +2,9 @@
 
 - npm: Use `babel-preset-env` instead of `babel-env` (problems on Travis
     due to rebuilding babelrc file?)
+- npm: Update dev deps
 - Build: Add yarn.lock
+- Docs: Correct and elaborate on browser setup
 
 # 0.2.2
 
