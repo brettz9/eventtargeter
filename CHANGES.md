@@ -4,7 +4,6 @@
     due to rebuilding babelrc file?)
 - Build: Add yarn.lock
 
-
 # 0.2.2
 
 - Build: Properly apply Babel
