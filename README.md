@@ -19,7 +19,9 @@ Supports stricter API requirements and a number of additional methods to mimic
 
 ```js
 const {
-    EventTargetFactory, ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException
+    EventTargetFactory, ShimEventTarget,
+    ShimEvent, ShimCustomEvent,
+    ShimDOMException, setPrototypeOfCustomEvent
 } = EventTargeter;
 ```
 
@@ -27,7 +29,9 @@ or just:
 
 ```js
 import {
-    EventTargetFactory, ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException
+    EventTargetFactory, ShimEventTarget,
+    ShimEvent, ShimCustomEvent,
+    ShimDOMException, setPrototypeOfCustomEvent
 } from './node_modules/eventtargeter/EventTarget-es6.js';
 ```
 
@@ -69,12 +73,14 @@ car.start();
 </script>
 ```
 
-## Constructor
+## ShimEventTarget API
+
+### Constructor
 
 If you inherit from `EventTarget`, you can invoke the (non-standard)
 constructor with options. See `__setOptions`.
 
-## Standard methods
+### Standard methods
 
 The following behave as with the standard `EventTarget` methods
 (as possible). Options supported include the standard options, `capture`
@@ -105,7 +111,7 @@ be dispatched to `window` as expected, or, if on Node, you can listen instead
 for `uncaughtException`. Alternatively, you may implement your own
 `__userErrorEventHandler` method (see below).
 
-## Custom methods
+### Custom methods
 
 The following are non-standard methods:
 
@@ -166,9 +172,26 @@ The following are non-standard methods:
     by users in their own `dispatchEvent` calls (which shouldn't ever throw
     as that would be non-standard for the real `EventTarget`).
 
+## setPrototypeOfCustomEvent API
+
+Because `Object.setPrototypeOf` is not supported in all environments (e.g.,
+React-Native currently) and it comes at a cost for performance without
+much strong of a benefit (besides introspecting on the prototype chain),
+these calls to associate `ShimCustomEvent` with `ShimEvent` no longer occur
+automatically. If desired (e.g., for passing IDL tests), they can be set
+using `setPrototypeOfCustomEvent`.
+
+## Other APIs
+
+`ShimEvent`, `ShimCustomEvent`, and `ShimDOMException` should generally
+follow the standard API for the objects they are shimming.
+
 ## Possible to-dos
 
 -   See `todo`'s' within code.
+
+-   Align with new
+    [standard](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/EventTarget).
 
 -   Option to set global `event` (Does this redefine or alter the object for capturing, bubbling, etc.?)
 

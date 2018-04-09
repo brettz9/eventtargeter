@@ -1,3 +1,10 @@
+# 0.4.0
+
+- Breaking change (minor): Avoid `setPrototypeOf` calls unless new export
+    function explicitly called
+- Linting: Add `.eslintignore` (helpful to IDEs as well as simplifying script)
+- npm: Avoid extra build during install
+
 # 0.3.1
 
 - Fix `.npmignore`

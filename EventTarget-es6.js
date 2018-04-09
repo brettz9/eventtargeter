@@ -211,7 +211,7 @@ ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable,
 };
 ShimCustomEvent[Symbol.toStringTag] = 'Function';
 ShimCustomEvent.prototype[Symbol.toStringTag] = 'CustomEventPrototype';
-Object.setPrototypeOf(ShimCustomEvent, ShimEvent); // TODO: IDL needs but reported as slow!
+
 Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
     enumerable: true,
     configurable: true,
@@ -219,7 +219,6 @@ Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
         throw new TypeError('Illegal invocation');
     }
 });
-Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype); // TODO: IDL needs but reported as slow!
 Object.defineProperty(ShimCustomEvent, 'prototype', {
     writable: false
 });
@@ -587,7 +586,16 @@ EventTarget.ShimDOMException = ShimDOMException;
 EventTarget.ShimEventTarget = EventTarget;
 EventTarget.EventTargetFactory = EventTargetFactory;
 
+function setPrototypeOfCustomEvent () {
+    // TODO: IDL needs but reported as slow!
+    Object.setPrototypeOf(ShimCustomEvent, ShimEvent);
+    Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype);
+}
+
 // Todo: Move to own library (but allowing WeakMaps to be passed in for sharing here)
 
-export {EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent,
-    ShimCustomEvent, ShimDOMException};
+export {
+    setPrototypeOfCustomEvent,
+    EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent,
+    ShimCustomEvent, ShimDOMException
+};

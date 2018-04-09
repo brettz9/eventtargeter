@@ -213,7 +213,7 @@ ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable,
 };
 ShimCustomEvent[Symbol.toStringTag] = 'Function';
 ShimCustomEvent.prototype[Symbol.toStringTag] = 'CustomEventPrototype';
-Object.setPrototypeOf(ShimCustomEvent, ShimEvent); // TODO: IDL needs but reported as slow!
+
 Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
     enumerable: true,
     configurable: true,
@@ -221,7 +221,6 @@ Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
         throw new TypeError('Illegal invocation');
     }
 });
-Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype); // TODO: IDL needs but reported as slow!
 Object.defineProperty(ShimCustomEvent, 'prototype', {
     writable: false
 });
@@ -590,6 +589,13 @@ EventTarget.ShimDOMException = exports.ShimDOMException;
 EventTarget.ShimEventTarget = EventTarget;
 EventTarget.EventTargetFactory = EventTargetFactory;
 
+function setPrototypeOfCustomEvent() {
+    // TODO: IDL needs but reported as slow!
+    Object.setPrototypeOf(ShimCustomEvent, ShimEvent);
+    Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype);
+}
+
+exports.setPrototypeOfCustomEvent = setPrototypeOfCustomEvent;
 exports.EventTargetFactory = EventTargetFactory;
 exports.ShimEventTarget = EventTarget;
 exports.ShimEvent = ShimEvent;
