@@ -8,11 +8,11 @@
 
 	// Adding events to custom object
 
-	const Car = function () {
+	function Car () {
 		this.start = function () {
 			this.dispatchEvent({type: 'start', message: 'vroom vroom!'});
 		};
-	};
+	}
 
 	Object.assign(Car.prototype, EventTarget.prototype);
 
