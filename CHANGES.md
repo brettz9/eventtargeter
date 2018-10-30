@@ -1,3 +1,12 @@
+# 0.5.0
+
+- Breaking change: Add separate ES build to `dist` along with UMD build
+    (and move source file to `src`) and point to them in `module` and
+    `main` of `package.json`, respectively
+- Enhancement: Add `@babel/polyfill` as dependency
+- Linting (ESLint): Avoid pseudo-deprecated Node `url.parse`
+- npm: Update to Babel7; update other devDeps
+
 # 0.4.0
 
 - Breaking change (minor): Avoid `setPrototypeOf` calls unless new export

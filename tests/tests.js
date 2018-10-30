@@ -1,7 +1,7 @@
 /* globals expect */
 /* eslint-env node, mocha */
 /* eslint-disable no-unused-expressions */
-import {ShimEventTarget} from '../EventTarget-es6.js';
+import {ShimEventTarget} from '../src/EventTarget.js';
 let testTypesArr;
 if (typeof Event !== 'undefined') {
     testTypesArr = ['polyfill', 'nativeEvent'];
@@ -81,13 +81,13 @@ testTypesArr.forEach(function (evClass) {
             it('should allow firing then removal of listener via `once` option', function () {
                 const car = new Car();
                 const func = function () {};
-                expect(car.hasEventListener('start', func, { once: true })).to.be.false;
+                expect(car.hasEventListener('start', func, {once: true})).to.be.false;
 
                 car.addEventListener('start', func, {once: true});
 
-                expect(car.hasEventListener('start', func, { once: true })).to.be.true;
+                expect(car.hasEventListener('start', func, {once: true})).to.be.true;
                 car.start();
-                expect(car.hasEventListener('start', func, { once: true })).to.be.false;
+                expect(car.hasEventListener('start', func, {once: true})).to.be.false;
             });
             it('should not remove the listener if `once` is not set', function () {
                 const car = new Car();
