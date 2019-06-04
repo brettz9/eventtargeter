@@ -1,8 +1,8 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (factory((global.EventTargeter = {})));
-}(this, (function (exports) { 'use strict';
+  (global = global || self, factory(global.EventTargeter = {}));
+}(this, function (exports) { 'use strict';
 
   function _typeof(obj) {
     if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
@@ -681,12 +681,12 @@
     Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype);
   } // Todo: Move to own library (but allowing WeakMaps to be passed in for sharing here)
 
-  exports.setPrototypeOfCustomEvent = setPrototypeOfCustomEvent;
   exports.EventTargetFactory = EventTargetFactory;
-  exports.ShimEventTarget = EventTarget;
-  exports.ShimEvent = ShimEvent;
   exports.ShimCustomEvent = ShimCustomEvent;
+  exports.ShimEvent = ShimEvent;
+  exports.ShimEventTarget = EventTarget;
+  exports.setPrototypeOfCustomEvent = setPrototypeOfCustomEvent;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-})));
+}));

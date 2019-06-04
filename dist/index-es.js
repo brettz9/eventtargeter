@@ -676,4 +676,4 @@ function setPrototypeOfCustomEvent() {
   Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype);
 } // Todo: Move to own library (but allowing WeakMaps to be passed in for sharing here)
 
-export { setPrototypeOfCustomEvent, EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException };
+export { EventTargetFactory, ShimCustomEvent, ShimDOMException, ShimEvent, EventTarget as ShimEventTarget, setPrototypeOfCustomEvent };

@@ -1,3 +1,3 @@
-const chai = require('chai');
-global.expect = chai.expect;
+const {expect} = require('chai');
+global.expect = expect;
 global.ShimEventTarget = require('../dist/index');
