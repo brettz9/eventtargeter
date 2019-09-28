@@ -1,3 +1,5 @@
-const {expect} = require('chai');
+import {expect} from 'chai';
+import {ShimEventTarget} from '../dist/index.js';
+
 global.expect = expect;
-global.ShimEventTarget = require('../dist/index');
+global.ShimEventTarget = ShimEventTarget;

@@ -1,13 +1,16 @@
 /* globals expect */
 /* eslint-env node, mocha */
-/* eslint-disable no-unused-expressions */
+/* eslint-disable no-unused-expressions, jsdoc/require-jsdoc, no-empty-function, no-restricted-syntax */
 import {ShimEventTarget} from '../src/EventTarget.js';
+
 let testTypesArr;
 if (typeof Event !== 'undefined') {
     testTypesArr = ['polyfill', 'nativeEvent'];
 } else {
     testTypesArr = ['polyfill'];
 }
+
+// eslint-disable-next-line no-shadow
 const EventTarget = ShimEventTarget;
 
 testTypesArr.forEach(function (evClass) {
@@ -68,11 +71,11 @@ testTypesArr.forEach(function (evClass) {
                 expect(function () {
                     const car = new Car();
                     car.addEventListener('sometype');
-                }).to.throw(TypeError, /2 or more arguments required/);
+                }).to.throw(TypeError, /2 or more arguments required/u);
                 const car = new Car();
                 // DOMException doesn't seem to work with expect().to.throw
                 try {
-                    car.addEventListener(null, function (event) {});
+                    car.addEventListener(null, function (ev) {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.message).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -180,11 +183,11 @@ testTypesArr.forEach(function (evClass) {
                 expect(function () {
                     const car = new Car();
                     car.removeEventListener('sometype');
-                }).to.throw(TypeError, /2 or more arguments required/);
+                }).to.throw(TypeError, /2 or more arguments required/u);
                 // DOMException doesn't seem to work with expect().to.throw
                 const car = new Car();
                 try {
-                    car.removeEventListener(null, function (event) {});
+                    car.removeEventListener(null, function (ev) {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.message).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -309,9 +312,9 @@ testTypesArr.forEach(function (evClass) {
             });
             it('should get proper bubbles and cancelable event properties when set', function (done) {
                 const car = new Car();
-                car.addEventListener('start', function (event) {
-                    expect(event.bubbles).equal(true);
-                    expect(event.cancelable).equal(true);
+                car.addEventListener('start', function (ev) {
+                    expect(ev.bubbles).equal(true);
+                    expect(ev.cancelable).equal(true);
                     done();
                 });
                 car.start({bubbles: true, cancelable: true});
@@ -320,13 +323,13 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 const actual = [];
                 const expected = [1, 2, 3];
-                car.addEventListener('start', function (event) {
+                car.addEventListener('start', function (ev) {
                     actual.push(1);
                 });
-                car.addEventListener('start', function (event) {
+                car.addEventListener('start', function (ev) {
                     actual.push(2);
                 });
-                car.addEventListener('start', function (event) {
+                car.addEventListener('start', function (ev) {
                     actual.push(3);
                 }, {capture: true});
                 car.start();
@@ -335,8 +338,8 @@ testTypesArr.forEach(function (evClass) {
             describe('Propagation (bubbling, capturing, and stopping propagation)', function () {
                 it('should allow bubbling events without hierarchical functions and behavior', function (done) {
                     const car = new Car();
-                    car.addEventListener('start', function (event) {
-                        expect(event.eventPhase).equal(2);
+                    car.addEventListener('start', function (ev) {
+                        expect(ev.eventPhase).equal(2);
                         done();
                     });
                     car.start({bubbles: true});
@@ -351,9 +354,9 @@ testTypesArr.forEach(function (evClass) {
                     expect(capturedCategories).deep.equal(expected);
                 });
                 it('should capture whether `capture` option stated as boolean or object property', function (done) {
-                    const parent = {__getParent: function () { return null; }};
+                    const parent = {__getParent () { return null; }};
                     const child = {
-                        __getParent: function () {
+                        __getParent () {
                             return parent;
                         }
                     };
@@ -430,10 +433,10 @@ testTypesArr.forEach(function (evClass) {
                     catTree.children[1].children[0].bubble(); // 'grandchildB1'
                 });
                 it('should get proper target, currentTarget, and eventPhase event properties when set', function (done) {
-                    const grandparent = {__getParent: function () { return null; }};
-                    const parent = {__getParent: function () { return grandparent; }};
+                    const grandparent = {__getParent () { return null; }};
+                    const parent = {__getParent () { return grandparent; }};
                     const child = {
-                        __getParent: function () {
+                        __getParent () {
                             return parent;
                         }
                     };
@@ -521,10 +524,10 @@ testTypesArr.forEach(function (evClass) {
                 expect(function () {
                     const car = new Car();
                     car.hasEventListener('sometype');
-                }).to.throw(TypeError, /2 or more arguments required/);
+                }).to.throw(TypeError, /2 or more arguments required/u);
                 try {
                     const car = new Car();
-                    car.hasEventListener(null, function (event) {});
+                    car.hasEventListener(null, function (ev) {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.name).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -604,9 +607,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent: function () { return null; }};
+                const parent = {__getParent () { return null; }};
                 const child = {
-                    __getParent: function () {
+                    __getParent () {
                         return parent;
                     }
                 };
@@ -697,9 +700,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent: function () { return null; }};
+                const parent = {__getParent () { return null; }};
                 const child = {
-                    __getParent: function () {
+                    __getParent () {
                         return parent;
                     }
                 };
@@ -925,9 +928,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent: function () { return null; }};
+                const parent = {__getParent () { return null; }};
                 const child = {
-                    __getParent: function () {
+                    __getParent () {
                         return parent;
                     }
                 };
@@ -1066,6 +1069,7 @@ testTypesArr.forEach(function (evClass) {
                 if (typeof window === 'undefined') {
                     process.on('uncaughtException', handler);
                 } else {
+                    // eslint-disable-next-line unicorn/prefer-add-event-listener
                     window.onerror = function (msg) {
                         if (ct2 === 0) {
                             expect(msg).to.equal('Uncaught exception: Oops');
@@ -1099,6 +1103,7 @@ testTypesArr.forEach(function (evClass) {
                     if (typeof window === 'undefined') {
                         process.on('uncaughtException', handler);
                     } else {
+                        // eslint-disable-next-line unicorn/prefer-add-event-listener
                         window.onerror = function (msg) {
                         };
                         window.addEventListener('error', handler);

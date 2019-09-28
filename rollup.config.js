@@ -1,5 +1,6 @@
 import babel from 'rollup-plugin-babel';
 
+// eslint-disable-next-line import/no-anonymous-default-export
 export default [{
     input: 'src/EventTarget.js',
     output: {

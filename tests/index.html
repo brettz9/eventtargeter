@@ -5,6 +5,7 @@
         <title>EventTarget tests</title>
         <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon" />
         <link rel="stylesheet" media="all" href="../node_modules/mocha/mocha.css" />
+        <script src="../node_modules/core-js-bundle/minified.js"></script>
         <script src="../node_modules/mocha/mocha.js"></script>
         <script src="../node_modules/chai/chai.js"></script>
     </head>
@@ -13,11 +14,13 @@
         <div id="messages"></div>
         <div id="fixtures"></div>
         <script>
+            /* globals mocha, chai */
             mocha.setup('bdd');
             window.expect = chai.expect;
         </script>
         <script type="module" src="../tests/tests.js"></script><!-- We use this type of path for sake of server too -->
         <script type="module">
+            /* globals mocha */
             mocha.run();
         </script>
     </body>

@@ -1,5 +1,14 @@
 # CHANGES for eventtargeter
 
+## 0.7.0
+
+- Breaking change: Switch `core-js-bundle` from dep. to devDep (and use
+    in example file)
+- Linting (ESLint): Change to add recommended extension (".js"); lint HTML, MD
+- Linting (lgtm): Add `lgtm.yml`
+- Catch `handleEvent` and `handleEvent.bind` errors within listener
+- npm: Update devDeps and `core-js-bundle`
+
 ## 0.6.0
 
 - Breaking change: Remove `yarn.lock`

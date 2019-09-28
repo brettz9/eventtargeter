@@ -12,46 +12,50 @@ function _typeof(obj) {
   return _typeof(obj);
 }
 
-var ShimDOMException;
+/* eslint-disable no-sync, no-restricted-syntax */
+// Todo: Switch to ES6 classes
 var phases = {
   NONE: 0,
   CAPTURING_PHASE: 1,
   AT_TARGET: 2,
   BUBBLING_PHASE: 3
 };
-
-if (typeof DOMException === 'undefined') {
-  // Todo: Better polyfill (if even needed here)
-  ShimDOMException = function DOMException(msg, name) {
-    // No need for `toString` as same as for `Error`
-    var err = new Error(msg);
-    err.name = name;
-    return err;
-  };
-} else {
-  ShimDOMException = DOMException;
-}
-
+var ShimDOMException = typeof DOMException === 'undefined' // Todo: Better polyfill (if even needed here)
+// eslint-disable-next-line no-shadow
+? function DOMException(msg, name) {
+  // No need for `toString` as same as for `Error`
+  var err = new Error(msg);
+  err.name = name;
+  return err;
+} : DOMException;
 var ev = new WeakMap();
 var evCfg = new WeakMap(); // Todo: Set _ev argument outside of this function
 
+/* eslint-disable func-name-matching, no-shadow */
+
 /**
-* We use an adapter class rather than a proxy not only for compatibility but also since we have to clone
-* native event properties anyways in order to properly set `target`, etc.
-* @note The regular DOM method `dispatchEvent` won't work with this polyfill as it expects a native event
+* We use an adapter class rather than a proxy not only for compatibility
+* but also since we have to clone native event properties anyways in order
+* to properly set `target`, etc.
+* The regular DOM method `dispatchEvent` won't work with this polyfill as
+* it expects a native event.
+* @class
+* @param {string} type
 */
 
 var ShimEvent = function Event(type) {
-  // eslint-disable-line no-native-reassign
+  /* eslint-enable func-name-matching, no-shadow */
   // For WebIDL checks of function's `length`, we check `arguments` for the optional arguments
   this[Symbol.toStringTag] = 'Event';
 
   this.toString = function () {
     return '[object Event]';
-  };
+  }; // eslint-disable-next-line prefer-rest-params
 
-  var evInit = arguments[1];
-  var _ev = arguments[2];
+
+  var _arguments = Array.prototype.slice.call(arguments),
+      evInit = _arguments[1],
+      _ev = _arguments[2];
 
   if (!arguments.length) {
     throw new TypeError("Failed to construct 'Event': 1 argument required, but only 0 present.");
@@ -187,10 +191,21 @@ ShimEvent.prototype[Symbol.toStringTag] = 'EventPrototype';
 Object.defineProperty(ShimEvent, 'prototype', {
   writable: false
 });
+/* eslint-disable func-name-matching, no-shadow */
+
+/**
+ *
+ * @param {string} type
+ * @class
+ */
 
 var ShimCustomEvent = function CustomEvent(type) {
-  var evInit = arguments[1];
-  var _ev = arguments[2];
+  /* eslint-enable func-name-matching, no-shadow */
+  // eslint-disable-next-line prefer-rest-params
+  var _arguments2 = Array.prototype.slice.call(arguments),
+      evInit = _arguments2[1],
+      _ev = _arguments2[2];
+
   ShimEvent.call(this, type, evInit, _ev);
   this[Symbol.toStringTag] = 'CustomEvent';
 
@@ -220,7 +235,8 @@ ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable,
   ShimCustomEvent.call(this, type, {
     bubbles: bubbles,
     cancelable: cancelable,
-    detail: detail
+    detail: detail // eslint-disable-next-line prefer-rest-params
+
   }, arguments[4]);
 
   if (_evCfg._dispatched) {
@@ -250,21 +266,60 @@ Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
 Object.defineProperty(ShimCustomEvent, 'prototype', {
   writable: false
 });
+/**
+ *
+ * @param {Event} e
+ * @returns {ShimEvent}
+ */
 
-function copyEvent(ev) {
-  if ('detail' in ev) {
-    return new ShimCustomEvent(ev.type, {
-      bubbles: ev.bubbles,
-      cancelable: ev.cancelable,
-      detail: ev.detail
-    }, ev);
+function copyEvent(e) {
+  var bubbles = e.bubbles,
+      cancelable = e.cancelable,
+      detail = e.detail,
+      type = e.type;
+
+  if ('detail' in e) {
+    return new ShimCustomEvent(type, {
+      bubbles: bubbles,
+      cancelable: cancelable,
+      detail: detail
+    }, e);
   }
 
-  return new ShimEvent(ev.type, {
-    bubbles: ev.bubbles,
-    cancelable: ev.cancelable
-  }, ev);
+  return new ShimEvent(type, {
+    bubbles: bubbles,
+    cancelable: cancelable
+  }, e);
 }
+/**
+* @typedef {PlainObject} ListenerOptions
+* @property {boolean} capture
+*/
+
+/**
+* @typedef {PlainObject} ListenerInfo
+* @property {} listenersByTypeOptions
+* @property {} options
+* @property {} listenersByType
+*/
+
+/**
+* @typedef {function} listener
+*/
+
+/**
+ * Keys are event types
+ * @typedef {Object<string,listener[]>} Listener
+*/
+
+/**
+ *
+ * @param {Listener[]} listeners
+ * @param {string} type
+ * @param {boolean|ListenerOptions} options
+ * @returns {ListenerInfo}
+ */
+
 
 function getListenersOptions(listeners, type, options) {
   var listenersByType = listeners[type];
@@ -307,6 +362,8 @@ var methods = {
         if (!listenersByType.length) delete listeners[type];
         return true;
       }
+
+      return false;
     });
   },
   hasListener: function hasListener(listeners, listener, type, options) {
@@ -317,14 +374,21 @@ var methods = {
     });
   }
 };
+/* eslint-disable no-shadow */
+
+/**
+ * @class
+ */
 
 function EventTarget() {
+  /* eslint-enable no-shadow */
   throw new TypeError('Illegal constructor');
 }
 
 Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(function (obj, listenerType) {
   ['add', 'remove', 'has'].forEach(function (method) {
     obj[method + listenerType + 'EventListener'] = function (type, listener) {
+      // eslint-disable-next-line prefer-rest-params
       var options = arguments[2]; // We keep the listener `length` as per WebIDL
 
       if (arguments.length < 2) throw new TypeError('2 or more arguments required');
@@ -333,8 +397,16 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
         throw new ShimDOMException('UNSPECIFIED_EVENT_TYPE_ERR', 'UNSPECIFIED_EVENT_TYPE_ERR');
       }
 
-      if (listener.handleEvent) {
-        listener = listener.handleEvent.bind(listener);
+      try {
+        // As per code such as the following, handleEvent may throw,
+        //  but is uncaught
+        // https://github.com/web-platform-tests/wpt/blob/master/IndexedDB/fire-error-event-exception.html#L54-L56
+        if (listener.handleEvent && listener.handleEvent.bind) {
+          listener = listener.handleEvent.bind(listener);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.log('Uncaught `handleEvent` error', err);
       }
 
       var arrStr = '_' + listenerType.toLowerCase() + (listenerType === '' ? 'l' : 'L') + 'isteners';
@@ -364,10 +436,10 @@ Object.assign(EventTarget.prototype, {
       this._extraProperties.push('__legacyOutputDidListenersThrowError');
     }
   },
-  dispatchEvent: function dispatchEvent(ev) {
-    return this._dispatchEvent(ev, true);
+  dispatchEvent: function dispatchEvent(e) {
+    return this._dispatchEvent(e, true);
   },
-  _dispatchEvent: function _dispatchEvent(ev, setTarget) {
+  _dispatchEvent: function _dispatchEvent(e, setTarget) {
     var _this = this;
 
     ['early', '', 'late', 'default'].forEach(function (listenerType) {
@@ -380,7 +452,7 @@ Object.assign(EventTarget.prototype, {
       }
     });
 
-    var _evCfg = evCfg.get(ev);
+    var _evCfg = evCfg.get(e);
 
     if (_evCfg && setTarget && _evCfg._dispatched) {
       throw new ShimDOMException('The object is in an invalid state.', 'InvalidStateError');
@@ -389,27 +461,36 @@ Object.assign(EventTarget.prototype, {
     var eventCopy;
 
     if (_evCfg) {
-      eventCopy = ev;
+      eventCopy = e;
     } else {
-      eventCopy = copyEvent(ev);
+      eventCopy = copyEvent(e);
       _evCfg = evCfg.get(eventCopy);
       _evCfg._dispatched = true;
 
       this._extraProperties.forEach(function (prop) {
-        if (prop in ev) {
-          eventCopy[prop] = ev[prop]; // Todo: Put internal to `ShimEvent`?
+        if (prop in e) {
+          eventCopy[prop] = e[prop]; // Todo: Put internal to `ShimEvent`?
         }
       });
     }
 
     var _eventCopy = eventCopy,
         type = _eventCopy.type;
+    /**
+     *
+     * @returns {void}
+     */
 
     function finishEventDispatch() {
       _evCfg.eventPhase = phases.NONE;
       _evCfg.currentTarget = null;
       delete _evCfg._children;
     }
+    /**
+     *
+     * @returns {void}
+     */
+
 
     function invokeDefaults() {
       // Ignore stopPropagation from defaults
@@ -454,47 +535,54 @@ Object.assign(EventTarget.prototype, {
     switch (eventCopy.eventPhase) {
       default:
       case phases.NONE:
-        _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
+        {
+          _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
 
-        this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
+          this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
 
-        if (!this.__getParent) {
-          _evCfg.eventPhase = phases.AT_TARGET;
-          return this._dispatchEvent(eventCopy, false);
-        }
+          if (!this.__getParent) {
+            _evCfg.eventPhase = phases.AT_TARGET;
+            return this._dispatchEvent(eventCopy, false);
+          }
+          /* eslint-disable consistent-this */
 
-        var par = this;
-        var root = this;
 
-        while (par.__getParent && (par = par.__getParent()) !== null) {
-          if (!_evCfg._children) {
-            _evCfg._children = [];
+          var par = this;
+          var root = this;
+          /* eslint-enable consistent-this */
+
+          while (par.__getParent && (par = par.__getParent()) !== null) {
+            if (!_evCfg._children) {
+              _evCfg._children = [];
+            }
+
+            _evCfg._children.push(root);
+
+            root = par;
           }
 
-          _evCfg._children.push(root);
-
-          root = par;
+          root._defaultSync = this._defaultSync;
+          _evCfg.eventPhase = phases.CAPTURING_PHASE;
+          return root._dispatchEvent(eventCopy, false);
         }
-
-        root._defaultSync = this._defaultSync;
-        _evCfg.eventPhase = phases.CAPTURING_PHASE;
-        return root._dispatchEvent(eventCopy, false);
 
       case phases.CAPTURING_PHASE:
-        if (_evCfg._stopPropagation) {
-          return continueEventDispatch();
+        {
+          if (_evCfg._stopPropagation) {
+            return continueEventDispatch();
+          }
+
+          this.invokeCurrentListeners(this._listeners, eventCopy, type);
+
+          var child = _evCfg._children && _evCfg._children.length && _evCfg._children.pop();
+
+          if (!child || child === eventCopy.target) {
+            _evCfg.eventPhase = phases.AT_TARGET;
+          }
+
+          if (child) child._defaultSync = this._defaultSync;
+          return (child || this)._dispatchEvent(eventCopy, false);
         }
-
-        this.invokeCurrentListeners(this._listeners, eventCopy, type);
-
-        var child = _evCfg._children && _evCfg._children.length && _evCfg._children.pop();
-
-        if (!child || child === eventCopy.target) {
-          _evCfg.eventPhase = phases.AT_TARGET;
-        }
-
-        if (child) child._defaultSync = this._defaultSync;
-        return (child || this)._dispatchEvent(eventCopy, false);
 
       case phases.AT_TARGET:
         if (_evCfg._stopPropagation) {
@@ -511,19 +599,21 @@ Object.assign(EventTarget.prototype, {
         return this._dispatchEvent(eventCopy, false);
 
       case phases.BUBBLING_PHASE:
-        if (_evCfg._stopPropagation) {
-          return continueEventDispatch();
+        {
+          if (_evCfg._stopPropagation) {
+            return continueEventDispatch();
+          }
+
+          var parent = this.__getParent && this.__getParent();
+
+          if (!parent) {
+            return continueEventDispatch();
+          }
+
+          parent.invokeCurrentListeners(parent._listeners, eventCopy, type, true);
+          parent._defaultSync = this._defaultSync;
+          return parent._dispatchEvent(eventCopy, false);
         }
-
-        var parent = this.__getParent && this.__getParent();
-
-        if (!parent) {
-          return continueEventDispatch();
-        }
-
-        parent.invokeCurrentListeners(parent._listeners, eventCopy, type, true);
-        parent._defaultSync = this._defaultSync;
-        return parent._dispatchEvent(eventCopy, false);
     }
   },
   invokeCurrentListeners: function invokeCurrentListeners(listeners, eventCopy, type, checkOnListeners) {
@@ -568,6 +658,8 @@ Object.assign(EventTarget.prototype, {
           _this2.removeEventListener(type, listener, options);
         }
       }
+
+      return false;
     });
     this.tryCatch(eventCopy, function () {
       var onListener = checkOnListeners ? _this2['on' + type] : null;
@@ -582,18 +674,20 @@ Object.assign(EventTarget.prototype, {
     });
     return !eventCopy.defaultPrevented;
   },
-  tryCatch: function tryCatch(ev, cb) {
+  // eslint-disable-next-line promise/prefer-await-to-callbacks
+  tryCatch: function tryCatch(evt, cb) {
     try {
       // Per MDN: Exceptions thrown by event handlers are reported
       //    as uncaught exceptions; the event handlers run on a nested
       //    callstack: they block the caller until they complete, but
       //    exceptions do not propagate to the caller.
+      // eslint-disable-next-line promise/prefer-await-to-callbacks, callback-return
       cb();
     } catch (err) {
-      this.triggerErrorEvent(err, ev);
+      this.triggerErrorEvent(err, evt);
     }
   },
-  triggerErrorEvent: function triggerErrorEvent(err, ev) {
+  triggerErrorEvent: function triggerErrorEvent(err, evt) {
     var error = err;
 
     if (typeof err === 'string') {
@@ -645,7 +739,7 @@ Object.assign(EventTarget.prototype, {
     //    https://github.com/w3c/IndexedDB/issues/140 (also https://github.com/w3c/IndexedDB/issues/49 )
 
     if (this._legacyOutputDidListenersThrowCheck) {
-      ev.__legacyOutputDidListenersThrowError = error;
+      evt.__legacyOutputDidListenersThrowError = error;
     }
   }
 });
@@ -656,7 +750,13 @@ Object.defineProperty(EventTarget, 'prototype', {
 var ShimEventTarget = EventTarget;
 var EventTargetFactory = {
   createInstance: function createInstance(customOptions) {
+    /* eslint-disable no-shadow */
+
+    /**
+     * @class
+     */
     function EventTarget() {
+      /* eslint-enable no-shadow */
       this.__setOptions(customOptions);
     }
 
@@ -669,6 +769,9 @@ EventTarget.ShimCustomEvent = ShimCustomEvent;
 EventTarget.ShimDOMException = ShimDOMException;
 EventTarget.ShimEventTarget = EventTarget;
 EventTarget.EventTargetFactory = EventTargetFactory;
+/**
+ * @returns {void}
+ */
 
 function setPrototypeOfCustomEvent() {
   // TODO: IDL needs but reported as slow!
