@@ -270,28 +270,38 @@ function copyEvent (e) {
 
 /**
 * @typedef {PlainObject} ListenerOptions
-* @property {boolean} capture
+* @property {boolean} once Remove listener after invoking once
+* @property {boolean} passive Don't allow `preventDefault`
+* @property {boolean} capture Use `_children` and set `eventPhase`
+*/
+
+/**
+* @typedef {PlainObject} ListenerAndOptions
+* @property {listener} listener
+* @property {ListenerOptions} options
 */
 
 /**
 * @typedef {PlainObject} ListenerInfo
-* @property {} listenersByTypeOptions
-* @property {} options
-* @property {} listenersByType
+* @property {ListenerAndOptions[]} listenersByTypeOptions
+* @property {ListenerOptions} options
+* @property {ListenerAndOptions[]} listenersByType
 */
 
 /**
-* @typedef {function} listener
+* @callback Listener
+* @param {Event} e
+* @returns {boolean}
 */
 
 /**
- * Keys are event types
- * @typedef {Object<string,listener[]>} Listener
+ * Keys are event types.
+ * @typedef {Object<string,Listener[]>} Listeners
 */
 
 /**
  *
- * @param {Listener[]} listeners
+ * @param {Listeners} listeners
  * @param {string} type
  * @param {boolean|ListenerOptions} options
  * @returns {ListenerInfo}
@@ -554,9 +564,9 @@ Object.assign(EventTarget.prototype, {
             }
             const {options} = listenerObj;
             const {
-                once, // Remove listener after invoking once
-                passive, // Don't allow `preventDefault`
-                capture // Use `_children` and set `eventPhase`
+                once,
+                passive,
+                capture
             } = options;
 
             _evCfg._passive = passive;

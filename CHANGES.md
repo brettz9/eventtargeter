@@ -1,5 +1,11 @@
 # CHANGES for eventtargeter
 
+## 0.8.0
+
+- Build: Update
+- Linting (ESLint): As per latest ash-nazg (jsdoc)
+- npm: Update devDeps
+
 ## 0.7.0
 
 - Breaking change: Switch `core-js-bundle` from dep. to devDep (and use
