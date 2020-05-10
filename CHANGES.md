@@ -1,5 +1,17 @@
 # CHANGES for eventtargeter
 
+## ?
+
+- Linting: Check RC file
+- Linting: As per latest ash-nazg
+- Build: Use "json" extension for RC
+- Testing: Move files to `test` (default for Mocha)
+- Testing: Use `chai/register-expect`
+- Testing: Add `nyc` (and separate `mocha` and `coverage` scripts)
+- npm: Change from deprecated `rollup-plugin-babel` to `rollup/plugin-babel`
+    and make explicit `babelHelpers` value of `bundled`
+- npm: Update devDeps
+
 ## 0.8.0
 
 - Build: Update

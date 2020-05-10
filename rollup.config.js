@@ -1,4 +1,4 @@
-import babel from 'rollup-plugin-babel';
+import babel from '@rollup/plugin-babel';
 
 // eslint-disable-next-line import/no-anonymous-default-export
 export default [{
@@ -9,7 +9,9 @@ export default [{
         name: 'EventTargeter'
     },
     plugins: [
-        babel()
+        babel({
+            babelHelpers: 'bundled'
+        })
     ]
 }, {
     input: 'src/EventTarget.js',
@@ -19,6 +21,8 @@ export default [{
         name: 'EventTargeter'
     },
     plugins: [
-        babel()
+        babel({
+            babelHelpers: 'bundled'
+        })
     ]
 }];

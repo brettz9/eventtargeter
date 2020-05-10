@@ -1,4 +1,5 @@
-/* eslint-disable no-sync, no-restricted-syntax */
+/* eslint-disable node/no-sync, no-restricted-syntax,
+    node/no-unsupported-features/es-syntax */
 
 // Todo: Switch to ES6 classes
 
@@ -484,29 +485,7 @@ Object.assign(EventTarget.prototype, {
         if (setTarget) _evCfg.target = this;
 
         switch (eventCopy.eventPhase) {
-        default: case phases.NONE: {
-            _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
-            this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
-            if (!this.__getParent) {
-                _evCfg.eventPhase = phases.AT_TARGET;
-                return this._dispatchEvent(eventCopy, false);
-            }
-
-            /* eslint-disable consistent-this */
-            let par = this;
-            let root = this;
-            /* eslint-enable consistent-this */
-            while (par.__getParent && (par = par.__getParent()) !== null) {
-                if (!_evCfg._children) {
-                    _evCfg._children = [];
-                }
-                _evCfg._children.push(root);
-                root = par;
-            }
-            root._defaultSync = this._defaultSync;
-            _evCfg.eventPhase = phases.CAPTURING_PHASE;
-            return root._dispatchEvent(eventCopy, false);
-        } case phases.CAPTURING_PHASE: {
+        case phases.CAPTURING_PHASE: {
             if (_evCfg._stopPropagation) {
                 return continueEventDispatch();
             }
@@ -538,6 +517,30 @@ Object.assign(EventTarget.prototype, {
             parent.invokeCurrentListeners(parent._listeners, eventCopy, type, true);
             parent._defaultSync = this._defaultSync;
             return parent._dispatchEvent(eventCopy, false);
+        }
+        case phases.NONE:
+        default: {
+            _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
+            this.invokeCurrentListeners(this._earlyListeners, eventCopy, type);
+            if (!this.__getParent) {
+                _evCfg.eventPhase = phases.AT_TARGET;
+                return this._dispatchEvent(eventCopy, false);
+            }
+
+            /* eslint-disable consistent-this */
+            let par = this;
+            let root_ = this;
+            /* eslint-enable consistent-this */
+            while (par.__getParent && (par = par.__getParent()) !== null) {
+                if (!_evCfg._children) {
+                    _evCfg._children = [];
+                }
+                _evCfg._children.push(root_);
+                root_ = par;
+            }
+            root_._defaultSync = this._defaultSync;
+            _evCfg.eventPhase = phases.CAPTURING_PHASE;
+            return root_._dispatchEvent(eventCopy, false);
         }
         }
     },
@@ -604,7 +607,7 @@ Object.assign(EventTarget.prototype, {
             //    as uncaught exceptions; the event handlers run on a nested
             //    callstack: they block the caller until they complete, but
             //    exceptions do not propagate to the caller.
-            // eslint-disable-next-line promise/prefer-await-to-callbacks, callback-return
+            // eslint-disable-next-line promise/prefer-await-to-callbacks, node/callback-return
             cb();
         } catch (err) {
             this.triggerErrorEvent(err, evt);

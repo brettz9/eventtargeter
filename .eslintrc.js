@@ -1,7 +1,9 @@
+'use strict';
+
 module.exports = {
-    "extends": "eslint-config-ash-nazg/sauron",
-    "env": {
-        "browser": true
+    extends: 'ash-nazg/sauron-node',
+    env: {
+        browser: true
     },
     settings: {
         polyfills: [
@@ -10,6 +12,15 @@ module.exports = {
         ]
     },
     overrides: [
+        {
+            files: ['.*.js'],
+            extends: [
+                'plugin:node/recommended-script'
+            ],
+            rules: {
+                'import/no-commonjs': 0
+            }
+        },
         {
             files: ['**/*.html'],
             rules: {
@@ -29,22 +40,25 @@ module.exports = {
                 'eol-last': ['off'],
                 'no-console': ['off'],
                 'no-undef': ['off'],
-                'no-unused-vars': ['warn', {varsIgnorePattern: 'EventTargetFactory|ShimEvent|ShimCustomEvent|ShimDOMException|setPrototypeOfCustomEvent|EventTarget'}],
-                "padded-blocks": "off",
-                "import/unambiguous": "off",
-                "import/no-unresolved": "off",
-                "import/no-commonjs": "off",
-                "node/no-missing-import": "off",
-                "no-multi-spaces": "off",
-                "no-alert": "off",
-                // Disable until may fix https://github.com/gajus/eslint-plugin-jsdoc/issues/211
-                "indent": "off"
+                'no-unused-vars': ['warn', {
+                    varsIgnorePattern: 'EventTargetFactory|ShimEvent|ShimCustomEvent|ShimDOMException|setPrototypeOfCustomEvent|EventTarget'
+                }],
+                'padded-blocks': 'off',
+                'import/unambiguous': 'off',
+                'import/no-unresolved': 'off',
+                'import/no-commonjs': 'off',
+                'node/no-missing-import': 'off',
+                'node/no-unsupported-features/es-syntax': 'off',
+                'no-multi-spaces': 'off',
+                'no-alert': 'off',
+                // Disable until may fix: https://github.com/gajus/eslint-plugin-jsdoc/issues/211
+                indent: 'off'
             }
         }
     ],
-    "rules": {
-        "indent": ["error", 4, {"outerIIFEBody": 0}],
+    rules: {
+        indent: ['error', 4, {outerIIFEBody: 0}],
         // Disable for now
-        "max-len": 0
+        'max-len': 0
     }
 };

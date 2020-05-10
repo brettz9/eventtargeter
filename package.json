@@ -8,8 +8,20 @@
     "start": "static -p 8090",
     "eslint": "eslint --ext=js,md,html .",
     "rollup": "rollup -c",
-    "test": "npm run eslint && npm run rollup && mocha --require esm \"tests/_node-tests\" tests/tests.js",
-    "browser-test": "npm run eslint && npm run rollup && open-cli http://localhost:8090/tests/ && npm start"
+    "coverage": "open-cli http://localhost:8090/coverage/ && npm start",
+    "mocha": "rm -Rf node_modules/.cache && nyc mocha --require chai/register-expect --require esm",
+    "test": "npm run eslint && npm run rollup && npm run mocha",
+    "browser-test": "npm run eslint && npm run rollup && open-cli http://localhost:8090/test/ && npm start"
+  },
+  "nyc": {
+    "reporter": [
+      "html",
+      "text"
+    ],
+    "exclude": [
+      "dist",
+      "test"
+    ]
   },
   "repository": {
     "type": "git",
@@ -32,34 +44,35 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@babel/core": "^7.8.4",
-    "@babel/preset-env": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
     "@mysticatea/eslint-plugin": "^13.0.0",
+    "@rollup/plugin-babel": "^5.0.0",
     "chai": "4.2.0",
-    "core-js-bundle": "^3.6.4",
-    "eslint": "^6.8.0",
-    "eslint-config-ash-nazg": "^17.2.0",
-    "eslint-config-standard": "^14.1.0",
-    "eslint-plugin-array-func": "^3.1.3",
+    "core-js-bundle": "^3.6.5",
+    "eslint": "^7.0.0",
+    "eslint-config-ash-nazg": "^22.0.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-plugin-array-func": "^3.1.5",
     "eslint-plugin-compat": "^3.5.1",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-html": "^6.0.0",
-    "eslint-plugin-import": "^2.20.1",
-    "eslint-plugin-jsdoc": "^21.0.0",
-    "eslint-plugin-markdown": "^1.0.1",
-    "eslint-plugin-no-unsanitized": "^3.0.2",
-    "eslint-plugin-no-use-extend-native": "^0.4.1",
-    "eslint-plugin-node": "^11.0.0",
+    "eslint-plugin-html": "^6.0.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-jsdoc": "^25.0.1",
+    "eslint-plugin-markdown": "^1.0.2",
+    "eslint-plugin-no-unsanitized": "^3.1.1",
+    "eslint-plugin-no-use-extend-native": "^0.5.0",
+    "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-sonarjs": "^0.5.0",
     "eslint-plugin-standard": "^4.0.1",
-    "eslint-plugin-unicorn": "^16.0.0",
+    "eslint-plugin-unicorn": "^19.0.1",
     "esm": "^3.2.25",
-    "mocha": "7.0.1",
+    "mocha": "7.1.2",
     "node-static": "0.7.11",
-    "open-cli": "^5.0.0",
-    "rollup": "1.31.0",
-    "rollup-plugin-babel": "^4.3.3",
-    "typescript": "^3.7.5"
+    "nyc": "^15.0.1",
+    "open-cli": "^6.0.1",
+    "rollup": "2.8.2",
+    "typescript": "^3.8.3"
   }
 }

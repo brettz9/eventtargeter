@@ -4,3 +4,5 @@ examples
 !EventTarget.js
 !EventTarget-es6.js
 !LICENSE-MIT.txt
+coverage
+.nyc_output

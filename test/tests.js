@@ -1,6 +1,7 @@
 /* globals expect */
 /* eslint-env node, mocha */
-/* eslint-disable no-unused-expressions, jsdoc/require-jsdoc, no-empty-function, no-restricted-syntax */
+/* eslint-disable no-unused-expressions, jsdoc/require-jsdoc,
+    no-empty-function, no-restricted-syntax, node/no-unsupported-features/es-syntax */
 import {ShimEventTarget} from '../src/EventTarget.js';
 
 let testTypesArr;
