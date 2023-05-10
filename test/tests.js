@@ -1,26 +1,34 @@
-/* globals expect */
-/* eslint-env node, mocha */
-/* eslint-disable no-unused-expressions, jsdoc/require-jsdoc,
-    no-empty-function, no-restricted-syntax, node/no-unsupported-features/es-syntax */
+/* eslint-disable no-unused-expressions -- Chai */
+/* eslint-disable no-empty-function -- Testing */
+/* eslint-disable no-restricted-syntax -- Instanceof */
+
+// eslint-disable-next-line no-shadow -- Needed
+import {expect} from 'chai';
+
 import {ShimEventTarget} from '../src/EventTarget.js';
 
-let testTypesArr;
-if (typeof Event !== 'undefined') {
-    testTypesArr = ['polyfill', 'nativeEvent'];
-} else {
-    testTypesArr = ['polyfill'];
-}
+const testTypesArr = typeof Event !== 'undefined'
+    ? ['polyfill', 'nativeEvent']
+    : ['polyfill'];
 
-// eslint-disable-next-line no-shadow
+// eslint-disable-next-line no-shadow -- Polyfill
 const EventTarget = ShimEventTarget;
 
 testTypesArr.forEach(function (evClass) {
+    /**
+     * @param {string} type
+     * @param {{bubbles?: true, cancelable?: true}} evInit
+     * @returns {Event|EventTarget}
+     */
     function newEvent (type, evInit) {
         return (evClass === 'nativeEvent'
             ? new Event(type, evInit) // This event will either be the native or, for Node, our exported shim
             : new EventTarget.ShimEvent(type, evInit)); // This event will either be the native or, for Node, our exported shim
     }
 
+    /**
+     * @class
+     */
     function Car () {}
     Car.prototype = EventTarget.EventTargetFactory.createInstance();
     Car.prototype.start = function (init) {
@@ -34,6 +42,12 @@ testTypesArr.forEach(function (evClass) {
 
     let capturedCategories = [];
     let bubbledCategories = [];
+
+    /**
+     * @class
+     * @param {string} name
+     * @param {[string, string[]][]} childCategories
+     */
     function CategoryTree (name, childCategories) {
         this.name = name;
         this.children = [];
@@ -43,11 +57,11 @@ testTypesArr.forEach(function (evClass) {
         this.addEventListener('bubbl', function () {
             bubbledCategories.push(name);
         });
-        (childCategories || []).forEach(function (childCategory) {
+        (childCategories || []).forEach((childCategory) => {
             const childTree = new CategoryTree(childCategory[0], childCategory[1]);
             childTree._parent = this;
             this.children.push(childTree);
-        }, this);
+        });
     }
     CategoryTree.prototype = EventTarget.EventTargetFactory.createInstance();
     CategoryTree.prototype.capture = function () {
@@ -188,6 +202,7 @@ testTypesArr.forEach(function (evClass) {
                 // DOMException doesn't seem to work with expect().to.throw
                 const car = new Car();
                 try {
+                    // eslint-disable-next-line unicorn/no-invalid-remove-event-listener -- Testing
                     car.removeEventListener(null, function (ev) {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
@@ -1052,6 +1067,10 @@ testTypesArr.forEach(function (evClass) {
             it('should trigger window.onerror', function (done) {
                 let ct = 0;
                 let ct2 = 0;
+                /**
+                 * @param {Error} err
+                 * @returns {void}
+                 */
                 function handler (err) {
                     if (ct === 0) {
                         expect(err.message).to.equal('Uncaught exception: Oops');
@@ -1070,7 +1089,7 @@ testTypesArr.forEach(function (evClass) {
                 if (typeof window === 'undefined') {
                     process.on('uncaughtException', handler);
                 } else {
-                    // eslint-disable-next-line unicorn/prefer-add-event-listener
+                    // eslint-disable-next-line unicorn/prefer-add-event-listener -- Testing `onerror`
                     window.onerror = function (msg) {
                         if (ct2 === 0) {
                             expect(msg).to.equal('Uncaught exception: Oops');
@@ -1085,7 +1104,7 @@ testTypesArr.forEach(function (evClass) {
 
                 const car = new Car();
                 const func = function () {
-                    throw 'Oops'; // eslint-disable-line no-throw-literal
+                    throw 'Oops'; // eslint-disable-line no-throw-literal -- Testing
                 };
                 const func2 = function () {
                     throw new Error('Oops again');
@@ -1096,6 +1115,9 @@ testTypesArr.forEach(function (evClass) {
             });
             if (evClass !== 'nativeEvent') {
                 it('should set `__legacyOutputDidListenersThrowError`', function (done) {
+                    /**
+                     * @returns {void}
+                     */
                     function handler () {
                         if (typeof window !== 'undefined') {
                             window.removeEventListener('error', handler);
@@ -1104,7 +1126,7 @@ testTypesArr.forEach(function (evClass) {
                     if (typeof window === 'undefined') {
                         process.on('uncaughtException', handler);
                     } else {
-                        // eslint-disable-next-line unicorn/prefer-add-event-listener
+                        // eslint-disable-next-line unicorn/prefer-add-event-listener -- Testing `onerror`
                         window.onerror = function (msg) {
                         };
                         window.addEventListener('error', handler);
@@ -1112,7 +1134,7 @@ testTypesArr.forEach(function (evClass) {
 
                     const car = new Car();
                     const func = function () {
-                        throw 'Oops'; // eslint-disable-line no-throw-literal
+                        throw 'Oops'; // eslint-disable-line no-throw-literal -- Testing
                     };
                     const func2 = function () {
                         throw new Error('Oops again');

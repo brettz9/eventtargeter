@@ -53,9 +53,9 @@ const EventTarget = require('eventtarget');
 // Adding events to custom object
 
 const Car = function () {
-  this.start = function () {
-    this.dispatchEvent({type: 'start', message: 'vroom vroom!'});
-  };
+    this.start = function () {
+        this.dispatchEvent({type: 'start', message: 'vroom vroom!'});
+    };
 };
 
 Object.assign(Car.prototype, EventTarget.prototype);
@@ -64,12 +64,11 @@ Object.assign(Car.prototype, EventTarget.prototype);
 
 const car = new Car();
 
-car.addEventListener('start', function (event) {
-  alert(event.message);
+car.addEventListener('start', function (ev) {
+    alert(ev.message);
 });
 
 car.start();
-
 </script>
 ```
 

@@ -1,7 +1,12 @@
 # CHANGES for eventtargeter
 
-## ?
+## 0.9.0
 
+BREAKING CHANGES:
+Update to Node 16; add `exports`; adds types
+
+- refactor: adds types
+- refactor: switch to native ESM
 - Linting: Check RC file
 - Linting: As per latest ash-nazg
 - Build: Use "json" extension for RC

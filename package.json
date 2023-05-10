@@ -1,19 +1,31 @@
 {
   "name": "eventtargeter",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "W3C JavaScript events for custom objects",
-  "main": "dist/index.js",
-  "module": "dist/index-es.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index-es.js",
+  "type": "module",
+  "types": "./dist/EventTarget.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/EventTarget.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index.js"
+    }
+  },
   "scripts": {
+    "tsc": "tsc",
     "start": "static -p 8090",
+    "lint": "npm run eslint",
     "eslint": "eslint --ext=js,md,html .",
     "rollup": "rollup -c",
+    "build": "npm run rollup && tsc -p tsconfig-prod.json",
     "coverage": "open-cli http://localhost:8090/coverage/ && npm start",
-    "mocha": "rm -Rf node_modules/.cache && nyc mocha --require chai/register-expect --require esm",
-    "test": "npm run eslint && npm run rollup && npm run mocha",
-    "browser-test": "npm run eslint && npm run rollup && open-cli http://localhost:8090/test/ && npm start"
+    "mocha": "rm -Rf node_modules/.cache && c8 mocha --require chai/register-expect.js",
+    "test": "npm run eslint && npm run build && npm run mocha",
+    "browser-test": "npm run eslint && npm run build && open-cli http://localhost:8090/test/ && npm start"
   },
-  "nyc": {
+  "c8": {
     "reporter": [
       "html",
       "text"
@@ -40,39 +52,38 @@
   },
   "homepage": "https://github.com/brettz9/eventdispatcher.js",
   "engines": {
-    "node": ">=4.4.3"
+    "node": ">=16.0.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@babel/core": "^7.9.6",
-    "@babel/preset-env": "^7.9.6",
-    "@mysticatea/eslint-plugin": "^13.0.0",
-    "@rollup/plugin-babel": "^5.0.0",
-    "chai": "4.2.0",
-    "core-js-bundle": "^3.6.5",
-    "eslint": "^7.0.0",
-    "eslint-config-ash-nazg": "^22.0.0",
-    "eslint-config-standard": "^14.1.1",
-    "eslint-plugin-array-func": "^3.1.5",
-    "eslint-plugin-compat": "^3.5.1",
-    "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-html": "^6.0.2",
-    "eslint-plugin-import": "^2.20.2",
-    "eslint-plugin-jsdoc": "^25.0.1",
+    "@babel/core": "^7.21.8",
+    "@babel/preset-env": "^7.21.5",
+    "@brettz9/eslint-plugin": "^1.0.4",
+    "@rollup/plugin-babel": "^6.0.3",
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "c8": "^7.13.0",
+    "chai": "4.3.7",
+    "eslint": "^8.40.0",
+    "eslint-config-ash-nazg": "^34.13.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-array-func": "^3.1.8",
+    "eslint-plugin-compat": "^4.1.4",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-html": "^7.1.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-jsdoc": "^44.2.4",
     "eslint-plugin-markdown": "^3.0.0",
-    "eslint-plugin-no-unsanitized": "^3.1.1",
+    "eslint-plugin-n": "^16.0.0",
+    "eslint-plugin-no-unsanitized": "^4.0.2",
     "eslint-plugin-no-use-extend-native": "^0.5.0",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-sonarjs": "^0.5.0",
-    "eslint-plugin-standard": "^4.0.1",
-    "eslint-plugin-unicorn": "^19.0.1",
-    "esm": "^3.2.25",
+    "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-sonarjs": "^0.19.0",
+    "eslint-plugin-standard": "^4.1.0",
+    "eslint-plugin-unicorn": "^47.0.0",
     "mocha": "10.2.0",
     "node-static": "0.7.11",
-    "nyc": "^15.0.1",
-    "open-cli": "^7.1.0",
-    "rollup": "2.8.2",
-    "typescript": "^3.8.3"
+    "open-cli": "^7.2.0",
+    "rollup": "3.22.0",
+    "typescript": "^5.0.4"
   }
 }

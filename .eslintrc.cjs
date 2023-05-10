@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-    extends: 'ash-nazg/sauron-node',
+    extends: 'ash-nazg/sauron-node-overrides',
     env: {
         browser: true
     },
@@ -12,15 +12,6 @@ module.exports = {
         ]
     },
     overrides: [
-        {
-            files: ['.*.js'],
-            extends: [
-                'plugin:node/recommended-script'
-            ],
-            rules: {
-                'import/no-commonjs': 0
-            }
-        },
         {
             files: ['**/*.html'],
             rules: {
@@ -33,7 +24,7 @@ module.exports = {
         //   our use of `matchingFileName` in conjunction with
         //   `jsdoc/check-examples` within `ash-nazg`)
         {
-            files: ['**/*.md'],
+            files: ['*.md/*.js'],
             rules: {
                 'no-shadow': 'off',
 
@@ -47,12 +38,10 @@ module.exports = {
                 'import/unambiguous': 'off',
                 'import/no-unresolved': 'off',
                 'import/no-commonjs': 'off',
-                'node/no-missing-import': 'off',
-                'node/no-unsupported-features/es-syntax': 'off',
+                'n/no-missing-import': 'off',
+                'n/no-unsupported-features/es-syntax': 'off',
                 'no-multi-spaces': 'off',
-                'no-alert': 'off',
-                // Disable until may fix: https://github.com/gajus/eslint-plugin-jsdoc/issues/211
-                indent: 'off'
+                'no-alert': 'off'
             }
         }
     ],
