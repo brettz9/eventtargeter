@@ -6,6 +6,9 @@
   "module": "./dist/index-es.js",
   "type": "module",
   "types": "./dist/EventTarget.d.ts",
+  "browserslist": [
+    "defaults, not op_mini all"
+  ],
   "exports": {
     ".": {
       "types": "./dist/EventTarget.d.ts",
@@ -17,7 +20,7 @@
     "tsc": "tsc",
     "start": "static -p 8090",
     "lint": "npm run eslint",
-    "eslint": "eslint --ext=js,md,html .",
+    "eslint": "eslint .",
     "rollup": "rollup -c",
     "build": "npm run rollup && tsc -p tsconfig-prod.json",
     "coverage": "open-cli http://localhost:8090/coverage/ && npm start",
@@ -55,35 +58,19 @@
     "node": ">=16.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.21.8",
-    "@babel/preset-env": "^7.21.5",
-    "@brettz9/eslint-plugin": "^1.0.4",
-    "@rollup/plugin-babel": "^6.0.3",
-    "@types/chai": "^4.3.5",
-    "@types/mocha": "^10.0.1",
-    "c8": "^7.13.0",
-    "chai": "4.3.7",
-    "eslint": "^8.40.0",
-    "eslint-config-ash-nazg": "^34.13.0",
-    "eslint-config-standard": "^17.0.0",
-    "eslint-plugin-array-func": "^3.1.8",
-    "eslint-plugin-compat": "^4.1.4",
-    "eslint-plugin-eslint-comments": "^3.2.0",
-    "eslint-plugin-html": "^7.1.0",
-    "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-jsdoc": "^44.2.4",
-    "eslint-plugin-markdown": "^3.0.0",
-    "eslint-plugin-n": "^16.0.0",
-    "eslint-plugin-no-unsanitized": "^4.0.2",
-    "eslint-plugin-no-use-extend-native": "^0.5.0",
-    "eslint-plugin-promise": "^6.1.1",
-    "eslint-plugin-sonarjs": "^0.19.0",
-    "eslint-plugin-standard": "^4.1.0",
-    "eslint-plugin-unicorn": "^47.0.0",
-    "mocha": "10.2.0",
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.4",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@types/chai": "^5.0.0",
+    "@types/mocha": "^10.0.8",
+    "c8": "^10.1.2",
+    "chai": "5.1.1",
+    "eslint": "^9.11.1",
+    "eslint-config-ash-nazg": "^36.19.0",
+    "mocha": "10.7.3",
     "node-static": "0.7.11",
-    "open-cli": "^7.2.0",
-    "rollup": "3.22.0",
-    "typescript": "^5.0.4"
+    "open-cli": "^8.0.0",
+    "rollup": "4.23.0",
+    "typescript": "^5.6.2"
   }
 }

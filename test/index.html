@@ -13,13 +13,12 @@
         <div id="messages"></div>
         <div id="fixtures"></div>
         <script>
-            /* globals mocha, chai -- No ESM */
+            /* globals chai -- No ESM */
             mocha.setup('bdd');
             window.expect = chai.expect;
         </script>
         <script type="module" src="../tests/tests.js"></script><!-- We use this type of path for sake of server too -->
         <script type="module">
-            /* globals mocha -- no ESM */
             mocha.run();
         </script>
     </body>

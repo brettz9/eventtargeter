@@ -1,3 +1,3 @@
 import {ShimEventTarget} from '../src/EventTarget.js';
 
-global.ShimEventTarget = ShimEventTarget;
+globalThis.ShimEventTarget = ShimEventTarget;

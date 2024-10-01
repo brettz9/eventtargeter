@@ -1,4 +1,3 @@
-/* eslint-disable n/no-sync -- Want sync naming */
 /* eslint-disable no-restricted-syntax -- Instanceof checks */
 /* eslint-disable unicorn/no-this-assignment -- TS */
 
@@ -64,7 +63,7 @@ const phases = {
 const ShimDOMException = typeof DOMException === 'undefined'
 // Todo: Better polyfill (if even needed here)
 /* eslint-disable no-shadow -- Polyfill */
-    // eslint-disable-next-line operator-linebreak -- TS/JSDoc needs
+    // eslint-disable-next-line @stylistic/operator-linebreak -- TS/JSDoc needs
     ?
     /**
      * @param {string} msg
@@ -309,7 +308,7 @@ const ShimCustomEvent = /** @type {unknown} */ function CustomEvent (type) {
     /* eslint-enable func-name-matching -- Polyfill */
     /* eslint-enable no-shadow -- Polyfill */
 
-    // eslint-disable-next-line prefer-rest-params -- Keep signature
+    // eslint-disable-next-line prefer-const, prefer-rest-params -- Keep signature
     let [, evInit, _ev] = arguments;
     // @ts-expect-error Casting doesn't work
     ShimEvent.call(this, type, evInit, _ev);
@@ -441,7 +440,9 @@ function copyEvent (e) {
  */
 function getListenersOptions (listeners, type, options) {
     let listenersByType = listeners[type];
-    if (listenersByType === undefined) listeners[type] = listenersByType = [];
+    if (listenersByType === undefined) {
+        listeners[type] = listenersByType = [];
+    }
     const opts = typeof options === 'boolean' ? {capture: options} : (options || {});
     const stringifiedOptions = JSON.stringify(opts);
     const listenersByTypeOptions = listenersByType.filter((obj) => {
@@ -466,7 +467,9 @@ const methods = {
 
         if (listenersByTypeOptions.some((l) => {
             return l.listener === listener;
-        })) return;
+        })) {
+            return;
+        }
         listenersByType.push({listener, options});
     },
 
@@ -485,7 +488,9 @@ const methods = {
         listenersByType.some((l, i) => {
             if (l.listener === listener && stringifiedOptions === JSON.stringify(l.options)) {
                 listenersByType.splice(i, 1);
-                if (!listenersByType.length) delete listeners[type];
+                if (!listenersByType.length) {
+                    delete listeners[type];
+                }
                 return true;
             }
             return false;
@@ -546,7 +551,9 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
         obj[mainMethod] = function (type, listener) {
             // eslint-disable-next-line prefer-rest-params -- Keep signature
             const options = arguments[2]; // We keep the listener `length` as per WebIDL
-            if (arguments.length < 2) throw new TypeError('2 or more arguments required');
+            if (arguments.length < 2) {
+                throw new TypeError('2 or more arguments required');
+            }
             if (typeof type !== 'string') {
                 // @ts-expect-error It's ok to construct
                 throw new ShimDOMException('UNSPECIFIED_EVENT_TYPE_ERR', 'UNSPECIFIED_EVENT_TYPE_ERR');
@@ -683,7 +690,9 @@ Object.assign(EventTarget.prototype, {
             _evCfg._stopPropagation = undefined;
             if (!this._defaultSync) {
                 setTimeout(invokeDefaults, 0);
-            } else invokeDefaults();
+            } else {
+                invokeDefaults();
+            }
 
             _evCfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke late listeners
             // Sync default might have stopped
@@ -698,7 +707,9 @@ Object.assign(EventTarget.prototype, {
             return !eventCopy.defaultPrevented;
         };
 
-        if (setTarget) _evCfg.target = this;
+        if (setTarget) {
+            _evCfg.target = this;
+        }
 
         switch ('eventPhase' in eventCopy && eventCopy.eventPhase) {
         case phases.CAPTURING_PHASE: {
@@ -710,7 +721,9 @@ Object.assign(EventTarget.prototype, {
             if (!child || child === eventCopy.target) {
                 _evCfg.eventPhase = phases.AT_TARGET;
             }
-            if (child) child._defaultSync = this._defaultSync;
+            if (child) {
+                child._defaultSync = this._defaultSync;
+            }
             return (child || this)._dispatchEvent(eventCopy, false);
         } case phases.AT_TARGET:
             if (_evCfg._stopPropagation) {
@@ -776,7 +789,9 @@ Object.assign(EventTarget.prototype, {
 
         listenersByType.some((listenerObj, i) => {
             const onListener = checkOnListeners ? this['on' + type] : null;
-            if (_evCfg._stopImmediatePropagation) return true;
+            if (_evCfg._stopImmediatePropagation) {
+                return true;
+            }
             if (i === dummyIPos && typeof onListener === 'function') {
                 // We don't splice this in as could be overwritten; executes here per
                 //    https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handlers-14
@@ -835,7 +850,7 @@ Object.assign(EventTarget.prototype, {
             //    as uncaught exceptions; the event handlers run on a nested
             //    callstack: they block the caller until they complete, but
             //    exceptions do not propagate to the caller.
-            // eslint-disable-next-line promise/prefer-await-to-callbacks, n/callback-return --  Try-catch
+            // eslint-disable-next-line promise/prefer-await-to-callbacks --  Try-catch
             cb();
         } catch (err) {
             this.triggerErrorEvent(err, evt);
@@ -902,7 +917,9 @@ Object.assign(EventTarget.prototype, {
         //     <https://github.com/axemclion/IndexedDBShim/issues/280>), we can't
         //     avoid the above Node implementation (which, while providing some
         //     fallback mechanism, is unstable)
-        if (!useNodeImpl || !this._legacyOutputDidListenersThrowCheck) triggerGlobalErrorEvent();
+        if (!useNodeImpl || !this._legacyOutputDidListenersThrowCheck) {
+            triggerGlobalErrorEvent();
+        }
 
         // See https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke and
         //    https://github.com/w3c/IndexedDB/issues/140 (also https://github.com/w3c/IndexedDB/issues/49 )

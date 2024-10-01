@@ -100,7 +100,7 @@ export class ShimCustomEvent {
     get detail(): any;
 }
 export const ShimDOMException: {
-    new (message?: string | undefined, name?: string | undefined): DOMException;
+    new (message?: string, name?: string): DOMException;
     prototype: DOMException;
     readonly INDEX_SIZE_ERR: 1;
     readonly DOMSTRING_SIZE_ERR: 2;

@@ -1,8 +1,8 @@
-/* eslint-disable no-unused-expressions -- Chai */
+/* globals process -- Needed for some Node handling  */
 /* eslint-disable no-empty-function -- Testing */
 /* eslint-disable no-restricted-syntax -- Instanceof */
+/* eslint-disable sonarjs/no-throw-literal -- Redundant */
 
-// eslint-disable-next-line no-shadow -- Needed
 import {expect} from 'chai';
 
 import {ShimEventTarget} from '../src/EventTarget.js';
@@ -90,7 +90,7 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 // DOMException doesn't seem to work with expect().to.throw
                 try {
-                    car.addEventListener(null, function (ev) {});
+                    car.addEventListener(null, function () {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.message).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -203,7 +203,7 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 try {
                     // eslint-disable-next-line unicorn/no-invalid-remove-event-listener -- Testing
-                    car.removeEventListener(null, function (ev) {});
+                    car.removeEventListener(null, function () {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.message).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -321,6 +321,7 @@ testTypesArr.forEach(function (evClass) {
                     expect(ev.bubbles).equal(false);
                     expect(ev.cancelable).equal(false);
                     expect(ev.defaultPrevented).equal(false);
+                    // eslint-disable-next-line chai-expect/no-inner-literal -- Convenient
                     expect(this).equal(car);
                     done();
                 });
@@ -339,13 +340,13 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 const actual = [];
                 const expected = [1, 2, 3];
-                car.addEventListener('start', function (ev) {
+                car.addEventListener('start', function () {
                     actual.push(1);
                 });
-                car.addEventListener('start', function (ev) {
+                car.addEventListener('start', function () {
                     actual.push(2);
                 });
-                car.addEventListener('start', function (ev) {
+                car.addEventListener('start', function () {
                     actual.push(3);
                 }, {capture: true});
                 car.start();
@@ -370,7 +371,9 @@ testTypesArr.forEach(function (evClass) {
                     expect(capturedCategories).deep.equal(expected);
                 });
                 it('should capture whether `capture` option stated as boolean or object property', function (done) {
-                    const parent = {__getParent () { return null; }};
+                    const parent = {__getParent () {
+                        return null;
+                    }};
                     const child = {
                         __getParent () {
                             return parent;
@@ -402,17 +405,17 @@ testTypesArr.forEach(function (evClass) {
                     const car = new Car();
                     const actual = [];
                     const expected = [1, 2];
-                    car.addEventListener('start', function (e) {
+                    car.addEventListener('start', function () {
                         actual.push(1);
                     });
                     car.addEventListener('start', function (e) {
                         e.stopImmediatePropagation();
                         actual.push(2);
                     }, {capture: true});
-                    car.addEventListener('start', function (e) {
+                    car.addEventListener('start', function () {
                         actual.push(3);
                     });
-                    car.addLateEventListener('start', function (e) {
+                    car.addLateEventListener('start', function () {
                         expect(actual).to.deep.equal(expected);
                         done();
                     });
@@ -449,8 +452,12 @@ testTypesArr.forEach(function (evClass) {
                     catTree.children[1].children[0].bubble(); // 'grandchildB1'
                 });
                 it('should get proper target, currentTarget, and eventPhase event properties when set', function (done) {
-                    const grandparent = {__getParent () { return null; }};
-                    const parent = {__getParent () { return grandparent; }};
+                    const grandparent = {__getParent () {
+                        return null;
+                    }};
+                    const parent = {__getParent () {
+                        return grandparent;
+                    }};
                     const child = {
                         __getParent () {
                             return parent;
@@ -496,10 +503,10 @@ testTypesArr.forEach(function (evClass) {
                 it('user handlers should not be able to stop propagation of default or late listeners', function (done) {
                     const car = new Car();
                     let caught1 = false;
-                    car.addLateEventListener('start', function (e) {
+                    car.addLateEventListener('start', function () {
                         caught1 = true;
                     });
-                    car.addDefaultEventListener('start', function (e) {
+                    car.addDefaultEventListener('start', function () {
                         expect(caught1).to.be.true;
                     });
                     car.addEventListener('start', function (e) {
@@ -519,14 +526,14 @@ testTypesArr.forEach(function (evClass) {
                     ['childA', [['grandchildA1'], ['grandchildA2']]],
                     ['childB', [['grandchildB1'], ['grandchildB2']]]
                 ]);
-                catTree.children[1].onbubbl = function (e) {
+                catTree.children[1].onbubbl = function () {
                     return false;
                 };
                 catTree.addEventListener('bubbl', function (e) {
                     propagated = true;
                     expect(e.defaultPrevented).to.be.true;
                 });
-                catTree.children[1].children[0].addLateEventListener('bubbl', function (e) {
+                catTree.children[1].children[0].addLateEventListener('bubbl', function () {
                     expect(propagated).to.be.true;
                     expect(bubbledCategories).deep.equal(expected);
                     done();
@@ -543,7 +550,7 @@ testTypesArr.forEach(function (evClass) {
                 }).to.throw(TypeError, /2 or more arguments required/u);
                 try {
                     const car = new Car();
-                    car.hasEventListener(null, function (ev) {});
+                    car.hasEventListener(null, function () {});
                 } catch (err) {
                     expect(err instanceof (typeof DOMException !== 'undefined' ? DOMException : Error)).to.be.true;
                     expect(err.name).equal('UNSPECIFIED_EVENT_TYPE_ERR');
@@ -623,7 +630,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent () { return null; }};
+                const parent = {__getParent () {
+                    return null;
+                }};
                 const child = {
                     __getParent () {
                         return parent;
@@ -665,7 +674,7 @@ testTypesArr.forEach(function (evClass) {
                 catTree.children[1].children[0].addDefaultEventListener('capt', function () {
                     ranDefault = true;
                 });
-                catTree.children[1].children[0].addLateEventListener('capt', function (e) {
+                catTree.children[1].children[0].addLateEventListener('capt', function () {
                     // expect(e.defaultPrevented).to.be.true;
                     expect(ranDefault).to.be.false;
                     expect(capturedCategories).deep.equal(expected);
@@ -677,17 +686,17 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 const actual = [];
                 const expected = [1, 2];
-                car.addEarlyEventListener('start', function (e) {
+                car.addEarlyEventListener('start', function () {
                     actual.push(1);
                 });
                 car.addEarlyEventListener('start', function (e) {
                     e.stopImmediatePropagation();
                     actual.push(2);
                 }, {capture: true});
-                car.addEarlyEventListener('start', function (e) {
+                car.addEarlyEventListener('start', function () {
                     actual.push(3);
                 });
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     expect(actual).to.deep.equal(expected);
                     done();
                 });
@@ -716,7 +725,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent () { return null; }};
+                const parent = {__getParent () {
+                    return null;
+                }};
                 const child = {
                     __getParent () {
                         return parent;
@@ -749,17 +760,17 @@ testTypesArr.forEach(function (evClass) {
                 const actual = [];
                 const expected = [1, 2];
                 car.__setOptions({defaultSync: true});
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     actual.push(1);
                 });
                 car.addDefaultEventListener('start', function (e) {
                     e.stopImmediatePropagation();
                     actual.push(2);
                 }, {capture: true});
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     actual.push(3);
                 });
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     expect(actual).to.deep.equal(expected);
                     done();
                 });
@@ -778,13 +789,13 @@ testTypesArr.forEach(function (evClass) {
                     expect(ranLateEventListener).to.be.true;
                     done();
                 });
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     ranLateEventListener = true;
                 });
-                car.addEarlyEventListener('start', function (e) {
+                car.addEarlyEventListener('start', function () {
                     ranEarlyEventListener = true;
                 });
-                car.addEventListener('start', function (e) {
+                car.addEventListener('start', function () {
                     ranNormalEventListener = true;
                 });
                 car.start({bubbles: true});
@@ -804,13 +815,13 @@ testTypesArr.forEach(function (evClass) {
                         done();
                     }, 30);
                 });
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     ranLateEventListener = true;
                 });
-                car.addEarlyEventListener('start', function (e) {
+                car.addEarlyEventListener('start', function () {
                     ranEarlyEventListener = true;
                 });
-                car.addEventListener('start', function (e) {
+                car.addEventListener('start', function () {
                     ranNormalEventListener = true;
                 });
                 car.start({bubbles: true});
@@ -825,7 +836,7 @@ testTypesArr.forEach(function (evClass) {
                         done();
                     }, 30);
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                 });
                 car.start({bubbles: true, cancelable: true});
@@ -841,7 +852,7 @@ testTypesArr.forEach(function (evClass) {
                         done();
                     }, 30);
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                 });
                 car.start({bubbles: true});
@@ -857,7 +868,7 @@ testTypesArr.forEach(function (evClass) {
                         done();
                     }, 30);
                 }, {passive: true});
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                 });
                 car.start({bubbles: true, cancelable: true});
@@ -869,7 +880,7 @@ testTypesArr.forEach(function (evClass) {
                     expect(e.defaultPrevented).to.be.true;
                     done();
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     //
                 });
                 car.start({bubbles: true, cancelable: true});
@@ -877,7 +888,7 @@ testTypesArr.forEach(function (evClass) {
             it('`return false` on addEventListener should not prevent default', function (done) {
                 const car = new Car();
                 let ranDefaultEventListener = false;
-                car.addEventListener('start', function (e) {
+                car.addEventListener('start', function () {
                     setTimeout(function () {
                         expect(ranDefaultEventListener).to.be.true;
                         done();
@@ -944,7 +955,9 @@ testTypesArr.forEach(function (evClass) {
                 car.start();
             });
             it('should not undergo capture or bubbling', function (done) {
-                const parent = {__getParent () { return null; }};
+                const parent = {__getParent () {
+                    return null;
+                }};
                 const child = {
                     __getParent () {
                         return parent;
@@ -988,13 +1001,13 @@ testTypesArr.forEach(function (evClass) {
                     expect(ranDefaultEventListener).to.be.true;
                     done();
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                 });
-                car.addEarlyEventListener('start', function (e) {
+                car.addEarlyEventListener('start', function () {
                     ranEarlyEventListener = true;
                 });
-                car.addEventListener('start', function (e) {
+                car.addEventListener('start', function () {
                     ranNormalEventListener = true;
                 });
                 car.start({bubbles: true});
@@ -1006,7 +1019,7 @@ testTypesArr.forEach(function (evClass) {
                     e.stopPropagation();
                     expect(ranDefaultEventListener).to.be.false;
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                     done();
                 });
@@ -1022,7 +1035,7 @@ testTypesArr.forEach(function (evClass) {
                         done();
                     }, 30);
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     ranDefaultEventListener = true;
                 });
                 car.start({bubbles: true, cancelable: true});
@@ -1031,17 +1044,17 @@ testTypesArr.forEach(function (evClass) {
                 const car = new Car();
                 const actual = [];
                 const expected = [1, 2];
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     actual.push(1);
                 });
                 car.addLateEventListener('start', function (e) {
                     e.stopImmediatePropagation();
                     actual.push(2);
                 }, {capture: true});
-                car.addLateEventListener('start', function (e) {
+                car.addLateEventListener('start', function () {
                     actual.push(3);
                 });
-                car.addDefaultEventListener('start', function (e) {
+                car.addDefaultEventListener('start', function () {
                     expect(actual).to.deep.equal(expected);
                     done();
                 });
@@ -1127,7 +1140,7 @@ testTypesArr.forEach(function (evClass) {
                         process.on('uncaughtException', handler);
                     } else {
                         // eslint-disable-next-line unicorn/prefer-add-event-listener -- Testing `onerror`
-                        window.onerror = function (msg) {
+                        window.onerror = function () {
                         };
                         window.addEventListener('error', handler);
                     }
