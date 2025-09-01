@@ -1,7 +1,6 @@
 /* globals process -- Needed for some Node handling  */
 /* eslint-disable no-empty-function -- Testing */
 /* eslint-disable no-restricted-syntax -- Instanceof */
-/* eslint-disable sonarjs/no-throw-literal -- Redundant */
 
 import {expect} from 'chai';
 

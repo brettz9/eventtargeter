@@ -54,7 +54,8 @@ export default [
         rules: {
             '@stylistic/indent': ['error', 4, {outerIIFEBody: 0}],
             // Disable for now
-            '@stylistic/max-len': 0
+            '@stylistic/max-len': 0,
+            'unicorn/prefer-global-this': 0
         }
     }
 ];

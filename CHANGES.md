@@ -1,5 +1,9 @@
 # CHANGES for eventtargeter
 
+## ?
+
+- chore: update devDeps.
+
 ## 0.9.0
 
 BREAKING CHANGES:
