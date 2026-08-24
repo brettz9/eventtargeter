@@ -1,3 +1,5 @@
 allowBuilds:
   is-hidden-file: true
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - eslint@10.9.1
