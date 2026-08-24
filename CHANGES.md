@@ -1,5 +1,9 @@
 # CHANGES for eventtargeter
 
+## 0.10.1
+
+- fix(types): TS bug with multiline typedefs
+
 ## 0.10.0
 
 - fix: bring `Event`/`CustomEvent`/`EventTarget` up to current WebIDL conformance

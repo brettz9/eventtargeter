@@ -655,10 +655,10 @@
     }
 
     /**
-     * @typedef {"addEarlyEventListener"|"removeEarlyEventListener"|"hasEarlyEventListener"|
-     *   "addEventListener"|"removeEventListener"|"hasEventListener"|
-     *   "addLateEventListener"|"removeLateEventListener"|"hasLateEventListener"|
-     *   "addDefaultEventListener"|"removeDefaultEventListener"|"hasDefaultEventListener"
+     * @typedef {"addEarlyEventListener"|"removeEarlyEventListener"|"hasEarlyEventListener"
+     *   |"addEventListener"|"removeEventListener"|"hasEventListener"
+     *   |"addLateEventListener"|"removeLateEventListener"|"hasLateEventListener"
+     *   |"addDefaultEventListener"|"removeDefaultEventListener"|"hasDefaultEventListener"
      * } ListenerName
      */
     Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(function (/** @type {{[key: string]: Function}} */

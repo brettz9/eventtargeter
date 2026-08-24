@@ -156,7 +156,7 @@ declare namespace EventTarget {
     export { EventTarget as ShimEventTarget };
     export { EventTargetFactory };
 }
-export type ListenerName = "addEarlyEventListener" | "removeEarlyEventListener" | "hasEarlyEventListener" | *   "addEventListener" | "removeEventListener" | "hasEventListener" | *   "addLateEventListener" | "removeLateEventListener" | "hasLateEventListener" | *   "addDefaultEventListener" | "removeDefaultEventListener" | "hasDefaultEventListener";
+export type ListenerName = "addEarlyEventListener" | "removeEarlyEventListener" | "hasEarlyEventListener" | "addEventListener" | "removeEventListener" | "hasEventListener" | "addLateEventListener" | "removeLateEventListener" | "hasLateEventListener" | "addDefaultEventListener" | "removeDefaultEventListener" | "hasDefaultEventListener";
 declare const EventTargetFactory: {
     /**
      * @param {CustomOptions} [customOptions]
