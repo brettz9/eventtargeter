@@ -1,8 +1,10 @@
 # CHANGES for eventtargeter
 
-## ?
+## 0.10.0
 
+- fix: bring `Event`/`CustomEvent`/`EventTarget` up to current WebIDL conformance
 - chore: update devDeps.
+- chore: fix CJS export types and native ESM conflict
 
 ## 0.9.0
 
