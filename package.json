@@ -2,7 +2,7 @@
   "name": "eventtargeter",
   "version": "0.9.0",
   "description": "W3C JavaScript events for custom objects",
-  "main": "./dist/index.js",
+  "main": "./dist/cjs/index.js",
   "module": "./dist/index-es.js",
   "type": "module",
   "types": "./dist/EventTarget.d.ts",
@@ -11,19 +11,25 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/EventTarget.d.ts",
-      "import": "./dist/index-es.js",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/EventTarget.d.ts",
+        "default": "./dist/index-es.js"
+      },
+      "require": {
+        "types": "./dist/EventTarget.d.cts",
+        "default": "./dist/cjs/index.js"
+      }
     }
   },
   "scripts": {
     "prepublishOnly": "npm run build && npm run tsc && npm run attw",
-    "attw": "attw --pack . --profile node16 --profile esm-only",
+    "attw": "attw --pack . --profile node16",
     "tsc": "tsc",
     "start": "static -p 8090",
     "lint": "npm run eslint",
     "eslint": "eslint .",
     "rollup": "rollup -c",
+    "postrollup": "node -e \"require('node:fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type: 'commonjs'}, null, 2) + '\\n')\"",
     "build": "npm run rollup && tsc -p tsconfig-prod.json",
     "coverage": "open-cli http://localhost:8090/coverage/ && npm start",
     "mocha": "rm -Rf node_modules/.cache && c8 mocha --require chai/register-expect.js",

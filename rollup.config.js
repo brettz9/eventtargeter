@@ -3,7 +3,7 @@ import {babel} from '@rollup/plugin-babel';
 export default [{
     input: 'src/EventTarget.js',
     output: {
-        file: 'dist/index.js',
+        file: 'dist/cjs/index.js',
         format: 'umd',
         name: 'EventTargeter'
     },
