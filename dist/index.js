@@ -198,13 +198,28 @@
           }
         });
       });
+
+      // Legacy alias of `.defaultPrevented`/`.preventDefault()`; not backed by
+      //   `_evCfg` like the rest since it's derived, not stored.
+      Object.defineProperty(this, 'returnValue', {
+        enumerable: true,
+        configurable: true,
+        get() {
+          return !this.defaultPrevented;
+        },
+        set(val) {
+          if (val === false) {
+            /** @type {() => void} */this.preventDefault();
+          }
+        }
+      });
       const props = [
       // Event
       'type', 'bubbles', 'cancelable',
       // Defaults to false
       'isTrusted', 'timeStamp', 'initEvent',
       // Other event properties (not used by our code)
-      'composedPath', 'composed'];
+      'composed'];
       if (this.toString() === '[object CustomEvent]') {
         props.push('detail', 'initCustomEvent');
       }
@@ -226,8 +241,13 @@
       }, /** @type {{[key: string]: any}} */{}));
     };
 
+    // Named function expressions (rather than anonymous ones assigned via
+    //   member-expression `=`, which per spec never get an inferred `.name`)
+    //   so `.name` matches the WebIDL operation identifier, e.g. for
+    //   `idlharness.js`'s "property has wrong .name" checks.
+
     /** @this {EventWithProps} */
-    ShimEvent.prototype.preventDefault = function () {
+    ShimEvent.prototype.preventDefault = function preventDefault() {
       if (!(this instanceof ShimEvent)) {
         throw new TypeError('Illegal invocation');
       }
@@ -242,28 +262,40 @@
       }
     };
 
+    /**
+     * A minimal, spec-shaped stand-in: this polyfill doesn't track a full
+     *   ancestor propagation path the way a real DOM event does, so this
+     *   always returns an empty path rather than a genuinely populated one.
+     * @this {EventWithProps}
+     * @returns {EventTargetInstance[]}
+     */
+    ShimEvent.prototype.composedPath = function composedPath() {
+      if (!(this instanceof ShimEvent)) {
+        throw new TypeError('Illegal invocation');
+      }
+      return [];
+    };
+
     /** @this {EventWithProps} */
-    ShimEvent.prototype.stopImmediatePropagation = function () {
+    ShimEvent.prototype.stopImmediatePropagation = function stopImmediatePropagation() {
       const _evCfg = getEvCfg(this);
       _evCfg._stopImmediatePropagation = true;
     };
 
     /** @this {EventWithProps} */
-    ShimEvent.prototype.stopPropagation = function () {
+    ShimEvent.prototype.stopPropagation = function stopPropagation() {
       const _evCfg = getEvCfg(this);
       _evCfg._stopPropagation = true;
     };
 
     /**
      * @param {string} type
-     * @param {boolean} bubbles
-     * @param {boolean} cancelable
+     * @param {boolean} [bubbles]
+     * @param {boolean} [cancelable]
      * @this {EventWithProps}
      */
-    ShimEvent.prototype.initEvent = function (type, bubbles, cancelable) {
-      // Chrome currently has function length 1 only but WebIDL says 3
-      // const bubbles = arguments[1];
-      // const cancelable = arguments[2];
+    ShimEvent.prototype.initEvent = function initEvent(type, bubbles = false, cancelable = false) {
+      // WebIDL's optional args (defaulted here) keep `.length` at 1, matching real browsers
       const _evCfg = getEvCfg(this);
       if (_evCfg._dispatched) {
         return;
@@ -299,24 +331,58 @@
         _evCfg.cancelable = cancelable;
       }
     };
-    ['type', 'target', 'currentTarget'].forEach(prop => {
+    // These attribute getters exist on the prototype only so idlharness-style
+    //   interface checks find them there (matching real DOM implementations,
+    //   where these are shared prototype accessors, not per-instance ones);
+    //   accessing one directly on the prototype itself (rather than a real
+    //   instance, which shadows these with the working per-instance getters
+    //   set up in the constructor above) throws, same as a real browser's
+    //   native accessor would for an unbound `this`. Each throw-stub's `.name`
+    //   is set explicitly to `"get " + prop` since `{get () {...}}` -- a
+    //   literal `get` key, not `get`-shorthand syntax -- names the function
+    //   `"get"`, not `"get " + prop`.
+    ['type', 'target', 'currentTarget', 'eventPhase', 'defaultPrevented', 'bubbles', 'cancelable', 'timeStamp', 'composed'].forEach(prop => {
+      const get = function () {
+        throw new TypeError('Illegal invocation');
+      };
+      Object.defineProperty(get, 'name', {
+        value: 'get ' + prop,
+        configurable: true
+      });
       Object.defineProperty(ShimEvent.prototype, prop, {
         enumerable: true,
         configurable: true,
-        get() {
-          throw new TypeError('Illegal invocation');
-        }
+        get
       });
     });
-    ['eventPhase', 'defaultPrevented', 'bubbles', 'cancelable', 'timeStamp'].forEach(prop => {
-      Object.defineProperty(ShimEvent.prototype, prop, {
+    {
+      const get = function () {
+        throw new TypeError('Illegal invocation');
+      };
+      // Setters are always spec'd with one formal parameter, so `.length`
+      //   must be 1 even though this throws unconditionally.
+      /**
+       * @param {boolean} _val
+       */
+      // eslint-disable-next-line no-unused-vars -- Needed for `.length`
+      const set = function (_val) {
+        throw new TypeError('Illegal invocation');
+      };
+      Object.defineProperty(get, 'name', {
+        value: 'get returnValue',
+        configurable: true
+      });
+      Object.defineProperty(set, 'name', {
+        value: 'set returnValue',
+        configurable: true
+      });
+      Object.defineProperty(ShimEvent.prototype, 'returnValue', {
         enumerable: true,
         configurable: true,
-        get() {
-          throw new TypeError('Illegal invocation');
-        }
+        get,
+        set
       });
-    });
+    }
     ['NONE', 'CAPTURING_PHASE', 'AT_TARGET', 'BUBBLING_PHASE'].forEach((prop, i) => {
       Object.defineProperty(ShimEvent, prop, {
         enumerable: true,
@@ -367,12 +433,13 @@
     });
     /**
      * @param {string} type
-     * @param {boolean} bubbles
-     * @param {boolean} cancelable
-     * @param {any} detail
+     * @param {boolean} [bubbles]
+     * @param {boolean} [cancelable]
+     * @param {any} [detail]
      * @this {EventWithProps}
      */
-    ShimCustomEvent.prototype.initCustomEvent = function (type, bubbles, cancelable, detail) {
+    ShimCustomEvent.prototype.initCustomEvent = function initCustomEvent(type, bubbles = false, cancelable = false, detail = null) {
+      // WebIDL's optional args (defaulted here) keep `.length` at 1
       if (!(this instanceof ShimCustomEvent)) {
         throw new TypeError('Illegal invocation');
       }
@@ -398,13 +465,20 @@
     };
     ShimCustomEvent[Symbol.toStringTag] = 'Function';
     ShimCustomEvent.prototype[Symbol.toStringTag] = 'CustomEventPrototype';
-    Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
-      enumerable: true,
-      configurable: true,
-      get() {
+    {
+      const get = function () {
         throw new TypeError('Illegal invocation');
-      }
-    });
+      };
+      Object.defineProperty(get, 'name', {
+        value: 'get detail',
+        configurable: true
+      });
+      Object.defineProperty(ShimCustomEvent.prototype, 'detail', {
+        enumerable: true,
+        configurable: true,
+        get
+      });
+    }
     Object.defineProperty(ShimCustomEvent, 'prototype', {
       writable: false
     });
@@ -598,6 +672,9 @@
          * @returns {boolean|void}
          */
         obj[mainMethod] = function (type, listener) {
+          if (!(this instanceof EventTarget)) {
+            throw new TypeError('Illegal invocation');
+          }
           if (arguments.length < 2) {
             throw new TypeError('2 or more arguments required');
           }
@@ -608,10 +685,13 @@
           // eslint-disable-next-line prefer-rest-params -- Keep signature
           const options = arguments[2]; // We keep the listener `length` as per WebIDL
           try {
+            // `listener` is nullable per WebIDL (`EventListener?`), and
+            //   the `in` operator throws for a `null`/non-object RHS,
+            //   so only look for `handleEvent` on an actual object.
             // As per code such as the following, handleEvent may throw,
             //  but is uncaught
             // https://github.com/web-platform-tests/wpt/blob/master/IndexedDB/fire-error-event-exception.html#L54-L56
-            if ('handleEvent' in listener && listener.handleEvent.bind) {
+            if (listener && typeof listener === 'object' && 'handleEvent' in listener && listener.handleEvent.bind) {
               listener = listener.handleEvent.bind(listener);
             }
           } catch (err) {
@@ -629,6 +709,14 @@
           method + 'Listener';
           return methods[meth](/** @type {AllListeners} */this[arrStr], /** @type {Listener} */listener, type, options);
         };
+        // Assigned via a computed (`obj[mainMethod] = ...`) member
+        // expression, so per spec it never gets an inferred `.name` --
+        // matters for idlharness.js's "property has wrong .name" checks on
+        // e.g. `addEventListener`/`removeEventListener`.
+        Object.defineProperty(obj[mainMethod], 'name', {
+          value: mainMethod,
+          configurable: true
+        });
       });
       return obj;
     }, {}));
