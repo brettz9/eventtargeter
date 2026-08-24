@@ -55,7 +55,12 @@ export default [
             '@stylistic/indent': ['error', 4, {outerIIFEBody: 0}],
             // Disable for now
             '@stylistic/max-len': 0,
-            'unicorn/prefer-global-this': 0
+            'unicorn/prefer-global-this': 0,
+            'unicorn/no-this-outside-of-class': 0,
+            'unicorn/no-global-object-property-assignment': 0,
+            'unicorn/no-top-level-side-effects': 0,
+            'jsdoc/reject-any-type': 0,
+            'jsdoc/reject-function-type': 0
         }
     }
 ];

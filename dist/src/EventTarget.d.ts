@@ -5,60 +5,29 @@ export type CustomOptions = {
     extraProperties?: string[];
     legacyOutputDidListenersThrowFlag?: boolean;
 };
-export type AddOrRemoveListenerMethod = (type: string, listener: Listener | {
-    handleEvent: Listener;
-}, options?: boolean | ListenerOptions) => void;
-export type HasListenerMethod = (type: string, listener: Listener | {
-    handleEvent: Listener;
-}, options?: boolean | ListenerOptions) => boolean;
-export type EventTargetInstance = {
-    _defaultSync?: boolean;
-    _extraProperties?: string[];
-    _legacyOutputDidListenersThrowCheck?: boolean;
-    _earlyListeners?: AllListeners;
-    _listeners?: AllListeners;
-    _lateListeners?: AllListeners;
-    _defaultListeners?: AllListeners;
-    _parent?: EventTargetInstance | null;
-    __getParent?: () => EventTargetInstance | null;
-    tryCatch: (evt: EventWithProps, cb: () => void) => void;
-    triggerErrorEvent: (err: unknown, evt: EventWithProps) => void;
-    invokeCurrentListeners: InvokeCurrentListeners;
-    dispatchEvent: (e: EventWithProps) => boolean;
-    _dispatchEvent: (e: EventWithProps, setTarget: boolean) => boolean;
-    __setOptions: (customOptions?: CustomOptions) => void;
-    addEventListener: AddOrRemoveListenerMethod;
-    removeEventListener: AddOrRemoveListenerMethod;
-    hasEventListener: HasListenerMethod;
-    addEarlyEventListener: AddOrRemoveListenerMethod;
-    removeEarlyEventListener: AddOrRemoveListenerMethod;
-    hasEarlyEventListener: HasListenerMethod;
-    addLateEventListener: AddOrRemoveListenerMethod;
-    removeLateEventListener: AddOrRemoveListenerMethod;
-    hasLateEventListener: HasListenerMethod;
-    addDefaultEventListener: AddOrRemoveListenerMethod;
-    removeDefaultEventListener: AddOrRemoveListenerMethod;
-    hasDefaultEventListener: HasListenerMethod;
-    [key: string]: any;
-};
 export type EventWithProps = {
-    __legacyOutputDidListenersThrowError?: unknown;
-    target?: EventTargetInstance;
-    composed?: boolean;
-    currentTarget?: EventTargetInstance | null;
-    eventPhase?: 0 | 1 | 2 | 3;
-    defaultPrevented?: boolean;
-    type?: string;
-    bubbles?: boolean;
-    cancelable?: boolean;
-    isTrusted?: boolean;
-    timeStamp?: Integer;
-    initEvent?: (type: string, bubbles: boolean, cancelable: boolean) => void;
-    preventDefault?: () => void;
-    composedPath?: () => void;
-    detail?: any;
-    initCustomEvent?: (type: string, canBubble: boolean, cancelable: boolean, detail: any) => void;
-    [key: string]: any;
+    __legacyOutputDidListenersThrowError: unknown;
+    target: EventTarget & {
+        invokeCurrentListeners: InvokeCurrentListeners;
+        _earlyListeners: AllListeners;
+        _listeners: AllListeners;
+        _lateListeners: AllListeners;
+        _defaultListeners: AllListeners;
+    };
+    composed: boolean;
+    currentTarget: EventTarget;
+    eventPhase: 0 | 1 | 2 | 3;
+    defaultPrevented: boolean;
+    type: string;
+    bubbles: boolean;
+    cancelable: boolean;
+    isTrusted: boolean;
+    timeStamp: Integer;
+    initEvent: (type: string, bubbles: boolean, cancelable: boolean) => void;
+    preventDefault: () => void;
+    composedPath: () => void;
+    detail: any;
+    initCustomEvent: (type: string, canBubble: boolean, cancelable: boolean, detail: any) => void;
 };
 declare const ShimDOMException: {
     new (message?: string, name?: string): DOMException;
@@ -97,20 +66,18 @@ declare const ShimDOMException: {
  * it expects a native event.
  * @class
  * @param {string} type
- * @this {EventWithProps}
  */
 declare const ShimEvent: {
-    (this: EventWithProps, type: string): void;
+    (type: any): void;
     [Symbol.toStringTag]: string;
     readonly prototype: any;
 };
 /**
  * @class
  * @param {string} type
- * @this {EventWithProps}
  */
 declare const ShimCustomEvent: {
-    (this: EventWithProps, type: string): void;
+    (type: any): void;
     [Symbol.toStringTag]: string;
     readonly prototype: any;
 };
@@ -137,7 +104,7 @@ export type ListenerInfo = {
     options: ListenerOptions;
     listenersByType: ListenerAndOptions[];
 };
-export type Listener = (e: EventWithProps) => boolean | void;
+export type Listener = (e: EventWithProps) => boolean;
 export type Listeners = {
     [key: string]: Listener[];
 };
@@ -159,10 +126,10 @@ declare namespace EventTarget {
 export type ListenerName = "addEarlyEventListener" | "removeEarlyEventListener" | "hasEarlyEventListener" | *   "addEventListener" | "removeEventListener" | "hasEventListener" | *   "addLateEventListener" | "removeLateEventListener" | "hasLateEventListener" | *   "addDefaultEventListener" | "removeDefaultEventListener" | "hasDefaultEventListener";
 declare const EventTargetFactory: {
     /**
-     * @param {CustomOptions} [customOptions]
+     * @param {CustomOptions} customOptions
      * @returns {EventTarget}
      */
-    createInstance(customOptions?: CustomOptions): EventTarget;
+    createInstance(customOptions: CustomOptions): EventTarget;
 };
 /**
  * @returns {void}

@@ -1,2 +1,3 @@
-ignoredBuiltDependencies:
-  - unrs-resolver
+allowBuilds:
+  is-hidden-file: true
+  unrs-resolver: false
