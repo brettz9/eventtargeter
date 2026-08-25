@@ -257,9 +257,11 @@ ShimEvent.prototype.preventDefault = function preventDefault() {
 };
 
 /**
- * A minimal, spec-shaped stand-in: this polyfill doesn't track a full
- *   ancestor propagation path the way a real DOM event does, so this
- *   always returns an empty path rather than a genuinely populated one.
+ * Per spec, returns the empty list once dispatch has finished (or hasn't
+ *   started); while an event is actively being dispatched, returns the
+ *   full target-to-root propagation path computed once up front by
+ *   `_dispatchEvent` (see there), regardless of which phase dispatch is
+ *   currently in.
  * @this {EventWithProps}
  * @returns {EventTargetInstance[]}
  */
@@ -267,7 +269,11 @@ ShimEvent.prototype.composedPath = function composedPath() {
   if (!(this instanceof ShimEvent)) {
     throw new TypeError('Illegal invocation');
   }
-  return [];
+  const _evCfg = getEvCfg(this);
+  if (!_evCfg._dispatchFlag || !_evCfg._path) {
+    return [];
+  }
+  return [..._evCfg._path];
 };
 
 /** @this {EventWithProps} */
@@ -509,6 +515,7 @@ function copyEvent(e) {
  * @property {boolean} [once] Remove listener after invoking once
  * @property {boolean} [passive] Don't allow `preventDefault`
  * @property {boolean} [capture] Use `_children` and set `eventPhase`
+ * @property {AbortSignal} [signal] Remove the listener when this aborts
  */
 
 /**
@@ -640,12 +647,31 @@ const methods = {
 
 /* eslint-disable no-shadow -- Polyfill */
 /**
- * @class
- * @throws {TypeError}
+ * A real, constructible, subclassable `EventTarget`: `new EventTarget()`
+ *   works directly, and so does `class Foo extends EventTarget {}` (its
+ *   `super()` call runs this same constructor body, with `new.target` set
+ *   to `Foo`, which is all a plain, non-`class` base needs to support
+ *   subclassing correctly -- the engine already gives `this` the
+ *   subclass's own prototype).
  */
-function EventTarget() {
+class EventTarget {
   /* eslint-enable no-shadow -- Polyfill */
-  throw new TypeError('Illegal constructor');
+  /**
+   * Per WebIDL (`constructor();`), this takes no arguments -- declaring a
+   *   formal parameter here (even an optional one) would give
+   *   `EventTarget.length` the wrong value for idlharness.js's own
+   *   "interface object length" check. `EventTargetFactory.createInstance`
+   *   (the only place custom, non-standard per-instance options are
+   *   actually used) never calls this constructor at all -- it borrows
+   *   this class's `.prototype` directly for its own separate function --
+   *   so there's no internal caller that needs to pass options through
+   *   here either.
+   */
+  constructor() {
+    // eslint-disable-next-line consistent-this -- TS constructors can't use `@this`
+    const me = /** @type {EventTargetInstance} */ /** @type {unknown} */this;
+    me.__setOptions();
+  }
 }
 
 /**
@@ -701,6 +727,21 @@ obj, listenerType) {
       }
       const meth = /** @type {"addListener"|"removeListener"|"hasListener"} */
       method + 'Listener';
+      if (method === 'add' && options && typeof options === 'object' && options.signal) {
+        const {
+          signal
+        } = options;
+        if (signal.aborted) {
+          return undefined;
+        }
+        const removeMethod = /** @type {"removeEventListener"|"removeEarlyEventListener"|"removeLateEventListener"|"removeDefaultEventListener"} */
+        'remove' + listenerType + 'EventListener';
+        signal.addEventListener('abort', () => {
+          this[removeMethod](type, listener, options);
+        }, {
+          once: true
+        });
+      }
       return methods[meth](/** @type {AllListeners} */this[arrStr], /** @type {Listener} */listener, type, options);
     };
     // Assigned via a computed (`obj[mainMethod] = ...`) member
@@ -800,6 +841,7 @@ Object.assign(EventTarget.prototype, {
     function finishEventDispatch() {
       cfg.eventPhase = phases.NONE;
       cfg.currentTarget = null;
+      cfg._dispatchFlag = false;
       delete cfg._children;
     }
     /**
@@ -883,6 +925,21 @@ Object.assign(EventTarget.prototype, {
       case phases.NONE:
       default:
         {
+          // The full target-to-root path, computed once up front (used
+          //   by `composedPath()`) -- kept separate from `cfg._children`
+          //   below, which is consumed as a stack while walking back
+          //   down during the capturing phase.
+          /* eslint-disable consistent-this -- Readability */
+          /** @type {EventTargetInstance[]} */
+          const path = [this];
+          /** @type {EventTargetInstance|null} */
+          let pathNode = this;
+          /* eslint-enable consistent-this -- Readability */
+          while (pathNode.__getParent && (pathNode = pathNode.__getParent()) !== null) {
+            path.push(pathNode);
+          }
+          cfg._path = path;
+          cfg._dispatchFlag = true;
           cfg.eventPhase = phases.AT_TARGET; // Temporarily set before we invoke early listeners
           this.invokeCurrentListeners(/** @type {AllListeners} */this._earlyListeners, eventCopy, type);
           if (!('__getParent' in this)) {
@@ -1052,10 +1109,12 @@ Object.assign(EventTarget.prototype, {
     }
   }
 });
+// @ts-expect-error Not part of the class body itself
 EventTarget.prototype[Symbol.toStringTag] = 'EventTargetPrototype';
-Object.defineProperty(EventTarget, 'prototype', {
-  writable: false
-});
+// A real class's own `.prototype` is already non-writable/non-configurable
+//   per spec, so no explicit freeze is needed here (unlike `ShimEvent`/
+//   `ShimCustomEvent`, which remain plain functions for now).
+
 const ShimEventTarget = EventTarget;
 const EventTargetFactory = {
   /**

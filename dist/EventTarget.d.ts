@@ -127,6 +127,10 @@ export type ListenerOptions = {
      * Use `_children` and set `eventPhase`
      */
     capture?: boolean;
+    /**
+     * Remove the listener when this aborts
+     */
+    signal?: AbortSignal;
 };
 export type ListenerAndOptions = {
     listener: Listener;
@@ -145,10 +149,27 @@ export type AllListeners = {
     [type: string]: ListenerAndOptions[];
 };
 /**
- * @class
- * @throws {TypeError}
+ * A real, constructible, subclassable `EventTarget`: `new EventTarget()`
+ *   works directly, and so does `class Foo extends EventTarget {}` (its
+ *   `super()` call runs this same constructor body, with `new.target` set
+ *   to `Foo`, which is all a plain, non-`class` base needs to support
+ *   subclassing correctly -- the engine already gives `this` the
+ *   subclass's own prototype).
  */
-declare function EventTarget(): void;
+declare class EventTarget {
+    /**
+     * Per WebIDL (`constructor();`), this takes no arguments -- declaring a
+     *   formal parameter here (even an optional one) would give
+     *   `EventTarget.length` the wrong value for idlharness.js's own
+     *   "interface object length" check. `EventTargetFactory.createInstance`
+     *   (the only place custom, non-standard per-instance options are
+     *   actually used) never calls this constructor at all -- it borrows
+     *   this class's `.prototype` directly for its own separate function --
+     *   so there's no internal caller that needs to pass options through
+     *   here either.
+     */
+    constructor();
+}
 declare namespace EventTarget {
     export { ShimEvent };
     export { ShimCustomEvent };

@@ -1,5 +1,9 @@
 # CHANGES for eventtargeter
 
+## 0.11.0 (unreleased)
+
+- feat: real, subclassable EventTarget; composedPath(); signal option
+
 ## 0.10.1
 
 - fix(types): TS bug with multiline typedefs
