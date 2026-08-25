@@ -181,6 +181,34 @@ function definePassthroughProps (instance, props, _evCfg, _ev) {
 }
 
 /**
+ * A single, shared getter function (not a fresh closure per instance,
+ *   unlike the rest of the passthrough props): idlharness.js's own
+ *   `[LegacyUnforgeable]`-attribute check expects the *same* getter
+ *   function reference across every instance's own `isTrusted` property
+ *   descriptor (real browsers back this with a shared native accessor over
+ *   an internal slot). Still installed as an *own* property per instance
+ *   (see `initEventInternal`, below) -- not on the prototype -- since
+ *   `[LegacyUnforgeable]` also requires it be defined directly on each
+ *   instance (undeletable/unshadowable there), which idlharness.js checks
+ *   for via `Object.getOwnPropertyDescriptor(new Event(...), "isTrusted")`.
+ * @this {EventWithProps}
+ * @throws {TypeError}
+ * @returns {boolean}
+ */
+function getIsTrusted () {
+    if (!(this instanceof ShimEvent)) {
+        throw new TypeError('Illegal invocation');
+    }
+    const _evCfg = getEvCfg(this);
+    const _ev = ev.get(this);
+    return Boolean(
+        Object.hasOwn(_evCfg, 'isTrusted')
+            ? _evCfg.isTrusted
+            : (Reflect.has(_ev, 'isTrusted') && _ev.isTrusted)
+    );
+}
+
+/**
  * The shared setup behind `Event`'s own constructor: populates the
  *   WeakMap-backed internal state and defines the base `Event` own-
  *   property getters on `instance`. Kept as a plain, reusable function
@@ -208,7 +236,11 @@ function initEventInternal (instance, type, evInit, _ev) {
     }
 
     // _evCfg.isTrusted = true; // We are not always using this for user-created events
-    // _evCfg.timeStamp = new Date().valueOf(); // This is no longer a timestamp, but monotonic (elapsed?)
+    // Per spec, a `DOMHighResTimeStamp` (`performance.now()`-based, where
+    //   available) rather than a wall-clock `Date`-based one.
+    _evCfg.timeStamp = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
 
     ev.set(instance, _ev);
     evCfg.set(instance, _evCfg);
@@ -238,17 +270,34 @@ function initEventInternal (instance, type, evInit, _ev) {
         });
     });
 
-    // Legacy alias of `.defaultPrevented`/`.preventDefault()`; not backed by
-    //   `_evCfg` like the rest since it's derived, not stored.
-    Object.defineProperty(instance, 'returnValue', {
-        enumerable: true,
-        configurable: true,
-        get () {
-            return !instance.defaultPrevented;
+    Object.defineProperties(instance, {
+        // `[LegacyUnforgeable]` per spec: a real, shared getter function
+        //   (see `getIsTrusted`, above), but still installed as an *own*
+        //   property of each instance rather than the prototype.
+        isTrusted: {
+            enumerable: true,
+            configurable: false,
+            get: getIsTrusted
         },
-        set (val) {
-            if (val === false) {
-                /** @type {() => void} */ (instance.preventDefault)();
+        // Legacy alias of `.target`.
+        srcElement: {
+            configurable: true,
+            get () {
+                return instance.target;
+            }
+        },
+        // Legacy alias of `.defaultPrevented`/`.preventDefault()`; not
+        //   backed by `_evCfg` like the rest since it's derived, not stored.
+        returnValue: {
+            enumerable: true,
+            configurable: true,
+            get () {
+                return !instance.defaultPrevented;
+            },
+            set (val) {
+                if (val === false) {
+                    /** @type {() => void} */ (instance.preventDefault)();
+                }
             }
         }
     });
@@ -257,7 +306,7 @@ function initEventInternal (instance, type, evInit, _ev) {
         // Event
         'type',
         'bubbles', 'cancelable', // Defaults to false
-        'isTrusted', 'timeStamp',
+        'timeStamp',
         // `initEvent` deliberately excluded: it's an *operation*, not a data
         //   attribute -- shadowing it here (the same way `type`/`bubbles`/
         //   etc. legitimately need to reflect a wrapped/copied event) would
@@ -265,6 +314,12 @@ function initEventInternal (instance, type, evInit, _ev) {
         //   plain data getter (returning `undefined` for any event not
         //   wrapping a native one with its own `initEvent`), breaking both
         //   re-callability and idlharness's "operation" conformance checks.
+        // `isTrusted` deliberately excluded too: idlharness.js's own
+        //   "attribute exists on prototype" checks expect the *same*
+        //   getter function reference for every instance (matching a real
+        //   `[LegacyUnforgeable]` accessor backed by an internal slot), not
+        //   a fresh own-property closure per instance -- see the shared
+        //   `ShimEventProto.isTrusted` accessor defined below instead.
         // Other event properties (not used by our code)
         'composed'
     ], _evCfg, _ev);
@@ -297,6 +352,10 @@ class Event {
         if (!arguments.length) {
             throw new TypeError("Failed to construct 'Event': 1 argument required, but only 0 present.");
         }
+        // WebIDL coerces `type` to a `DOMString`: a `type` with a custom
+        //   `toString`/`Symbol.toPrimitive` that throws must have that
+        //   error propagate out of the constructor.
+        type = String(type);
         initEventInternal(me, type, evInit, _ev);
     }
 }
@@ -408,6 +467,7 @@ ShimEventProto.initEvent = function initEvent (type, bubbles = false, cancelable
         _evCfg.cancelable = cancelable;
     }
 };
+
 // These attribute getters exist on the prototype only so idlharness-style
 //   interface checks find them there (matching real DOM implementations,
 //   where these are shared prototype accessors, not per-instance ones);
@@ -610,21 +670,41 @@ function copyEvent (e) {
  */
 
 /**
+ * Per spec, two `addEventListener`/`removeEventListener` calls refer to
+ *   the *same* listener registration if and only if their `type`,
+ *   `listener`, and `capture` all match -- `passive`/`once`/`signal` play
+ *   no part in that identity (they're just per-registration behavior
+ *   flags). The non-standard early/late/default listener variants
+ *   (IndexedDBShim's own extension, not part of any spec) keep the
+ *   original full-options-equality behavior instead, via `captureOnly`.
+ * @param {ListenerOptions} a
+ * @param {ListenerOptions} b
+ * @param {boolean} captureOnly
+ * @returns {boolean}
+ */
+function optionsMatch (a, b, captureOnly) {
+    if (captureOnly) {
+        return Boolean(a.capture) === Boolean(b.capture);
+    }
+    return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
  *
  * @param {AllListeners} listeners
  * @param {string} type
  * @param {boolean|ListenerOptions} options
+ * @param {boolean} captureOnly
  * @returns {ListenerInfo}
  */
-function getListenersOptions (listeners, type, options) {
+function getListenersOptions (listeners, type, options, captureOnly) {
     let listenersByType = listeners[type];
     if (listenersByType === undefined) {
         listeners[type] = listenersByType = [];
     }
     const opts = typeof options === 'boolean' ? {capture: options} : (options || {});
-    const stringifiedOptions = JSON.stringify(opts);
     const listenersByTypeOptions = listenersByType.filter((obj) => {
-        return stringifiedOptions === JSON.stringify(obj.options);
+        return optionsMatch(opts, obj.options, captureOnly);
     });
     return {listenersByTypeOptions, options: opts, listenersByType};
 }
@@ -635,10 +715,11 @@ const methods = {
      * @param {Listener} listener
      * @param {string} type
      * @param {boolean|ListenerOptions} options
+     * @param {boolean} captureOnly
      * @returns {void}
      */
-    addListener (listeners, listener, type, options) {
-        const listenersOptions = getListenersOptions(listeners, type, options);
+    addListener (listeners, listener, type, options, captureOnly) {
+        const listenersOptions = getListenersOptions(listeners, type, options, captureOnly);
         const {listenersByTypeOptions} = listenersOptions;
         ({options} = listenersOptions);
         const {listenersByType} = listenersOptions;
@@ -656,15 +737,15 @@ const methods = {
      * @param {Listener} listener
      * @param {string} type
      * @param {boolean|ListenerOptions} options
+     * @param {boolean} captureOnly
      * @returns {void}
      */
-    removeListener (listeners, listener, type, options) {
-        const listenersOptions = getListenersOptions(listeners, type, options);
+    removeListener (listeners, listener, type, options, captureOnly) {
+        const listenersOptions = getListenersOptions(listeners, type, options, captureOnly);
         const {listenersByType} = listenersOptions;
-        const stringifiedOptions = JSON.stringify(listenersOptions.options);
 
         listenersByType.some((l, i) => {
-            if (l.listener === listener && stringifiedOptions === JSON.stringify(l.options)) {
+            if (l.listener === listener && optionsMatch(listenersOptions.options, l.options, captureOnly)) {
                 listenersByType.splice(i, 1);
                 if (!listenersByType.length) {
                     delete listeners[type];
@@ -681,10 +762,11 @@ const methods = {
      * @param {Listener} listener
      * @param {string} type
      * @param {boolean|ListenerOptions} options
+     * @param {boolean} captureOnly
      * @returns {boolean}
      */
-    hasListener (listeners, listener, type, options) {
-        const listenersOptions = getListenersOptions(listeners, type, options);
+    hasListener (listeners, listener, type, options, captureOnly) {
+        const listenersOptions = getListenersOptions(listeners, type, options, captureOnly);
         const {listenersByTypeOptions} = listenersOptions;
         return listenersByTypeOptions.some((l) => {
             return l.listener === listener;
@@ -779,8 +861,51 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
             const meth = /** @type {"addListener"|"removeListener"|"hasListener"} */ (
                 method + 'Listener'
             );
-            if (method === 'add' && options && typeof options === 'object' && options.signal) {
-                const {signal} = options;
+            // Per spec, only `capture` distinguishes one standard listener
+            //   registration from another (`passive`/`once`/`signal` don't);
+            //   the non-standard early/late/default variants keep comparing
+            //   the full options object instead -- see `optionsMatch`.
+            const captureOnly = listenerType === '';
+
+            let finalOptions = options;
+            if (captureOnly && method === 'add') {
+                // Per spec, `addEventListener`'s options argument is
+                //   converted to a full `AddEventListenerOptions` dictionary
+                //   -- reading `capture`/`once`/`passive` (and `signal`, if
+                //   present) off it -- the moment the call is made,
+                //   regardless of whether all of those values end up used
+                //   (e.g. `passive`/`once` aren't part of the identity
+                //   comparison above, but a getter on them must still be
+                //   observed to have run). `removeEventListener`/
+                //   `hasEventListener` only accept `EventListenerOptions`
+                //   (just `capture`), so they're deliberately excluded here.
+                const rawOptions = typeof options === 'boolean' ? {capture: options} : (options || {});
+                finalOptions = /** @type {ListenerOptions} */ ({
+                    capture: Boolean(rawOptions.capture),
+                    once: Boolean(rawOptions.once),
+                    passive: Boolean(rawOptions.passive)
+                });
+                if ('signal' in rawOptions) {
+                    finalOptions.signal = rawOptions.signal;
+                }
+            }
+
+            if (method === 'add' && finalOptions && typeof finalOptions === 'object' && 'signal' in finalOptions) {
+                const {signal} = finalOptions;
+                // `AddEventListenerOptions.signal` is a non-nullable `AbortSignal`
+                //   per WebIDL, so converting `null` (or anything else that
+                //   isn't a real `AbortSignal`) throws, matching a real
+                //   browser's dictionary-member type conversion. Duck-typed
+                //   rather than `instanceof AbortSignal`: a caller's signal
+                //   may come from a different realm than this module's own
+                //   (e.g. constructed inside a `vm` sandbox), whose
+                //   `AbortSignal` is a distinct class with its own separate
+                //   identity, failing a same-realm `instanceof` check
+                //   despite being a perfectly genuine signal.
+                if (!signal || typeof signal !== 'object' ||
+                    typeof signal.aborted !== 'boolean' || typeof signal.addEventListener !== 'function') {
+                    throw new TypeError("Failed to convert value to 'AbortSignal'.");
+                }
                 if (signal.aborted) {
                     return undefined;
                 }
@@ -788,11 +913,11 @@ Object.assign(EventTarget.prototype, ['Early', '', 'Late', 'Default'].reduce(fun
                     'remove' + listenerType + 'EventListener'
                 );
                 signal.addEventListener('abort', () => {
-                    this[removeMethod](type, listener, options);
+                    this[removeMethod](type, listener, finalOptions);
                 }, {once: true});
             }
             return methods[meth](
-                /** @type {AllListeners} */ (this[arrStr]), /** @type {Listener} */ (listener), type, options
+                /** @type {AllListeners} */ (this[arrStr]), /** @type {Listener} */ (listener), type, finalOptions, captureOnly
             );
         };
         // Assigned via a computed (`obj[mainMethod] = ...`) member
@@ -1029,15 +1154,27 @@ Object.assign(EventTarget.prototype, {
         const _evCfg = getEvCfg(eventCopy);
         _evCfg.currentTarget = this;
 
-        const listOpts = getListenersOptions(listeners, type, {});
+        // `captureOnly` is irrelevant here: only `listOpts.listenersByType`
+        //   (the full, unfiltered list for this type) is used below, never
+        //   the options-filtered `listenersByTypeOptions`.
+        const listOpts = getListenersOptions(listeners, type, {}, false);
+        const liveListenersByType = listOpts.listenersByType;
         // eslint-disable-next-line unicorn/prefer-spread -- Performance?
-        const listenersByType = listOpts.listenersByType.concat();
+        const listenersByType = liveListenersByType.concat();
         const dummyIPos = listenersByType.length ? 1 : 0;
 
         // eslint-disable-next-line unicorn/no-unused-array-method-return -- Shortcircuiting
         listenersByType.some((listenerObj, i) => {
             if (_evCfg._stopImmediatePropagation) {
                 return true;
+            }
+            // A listener removed by an earlier callback in this same pass
+            //   (e.g. via an aborted `signal`, or a plain `removeEventListener`
+            //   call from within a sibling listener) must not be invoked,
+            //   even though it was still present in the snapshot taken at
+            //   the start of this pass.
+            if (!liveListenersByType.includes(listenerObj)) {
+                return false;
             }
             const onListener = checkOnListeners ? this['on' + type] : null;
             if (i === dummyIPos && typeof onListener === 'function') {
@@ -1064,12 +1201,16 @@ Object.assign(EventTarget.prototype, {
                 (!capture && eventCopy.target !== eventCopy.currentTarget && eventCopy.eventPhase === phases.BUBBLING_PHASE))
             ) {
                 const {listener} = listenerObj;
-                this.tryCatch(eventCopy, () => {
-                    listener.call(eventCopy.currentTarget, eventCopy);
-                });
+                // Per spec, a `once` listener is removed *before* it's
+                //   invoked, not after: a reentrant dispatch from within the
+                //   listener itself (e.g. dispatching the same event type
+                //   again synchronously) must not see it as still registered.
                 if (once) {
                     this.removeEventListener(type, listener, options);
                 }
+                this.tryCatch(eventCopy, () => {
+                    listener.call(eventCopy.currentTarget, eventCopy);
+                });
             }
             return false;
         });

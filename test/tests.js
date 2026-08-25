@@ -217,9 +217,6 @@ testTypesArr.forEach(function (evClass) {
                     ct2++;
                 };
 
-                const options1 = {passive: true};
-                const options2 = {passive: false};
-
                 expect(car.hasEventListener(type1, func1)).to.be.false;
                 expect(car.hasEventListener(type2, func2)).to.be.false;
 
@@ -237,10 +234,23 @@ testTypesArr.forEach(function (evClass) {
                 expect(ct1).equal(1);
                 expect(ct2).equal(1);
 
-                car.addEventListener(type1, func1, options1);
-                car.addEventListener(type1, func1, options2);
+                // Per spec, only `capture` (not `passive`) distinguishes one
+                //   standard listener registration from another.
+                car.addEventListener(type1, func1, {capture: true});
                 car.fire(type1);
-                expect(ct1).equal(4);
+                expect(ct1).equal(3); // The existing (capture: false) and new (capture: true) listeners both fire
+            });
+            it('should not add a distinct copy for options differing only in `passive`/`once`/`signal`', function () {
+                const car = new Car();
+                const type1 = 'something1';
+                let ct = 0;
+                const func = function () {
+                    ct++;
+                };
+                car.addEventListener(type1, func, {passive: true});
+                car.addEventListener(type1, func, {passive: false});
+                car.fire(type1);
+                expect(ct).equal(1);
             });
             it('should not add duplicate copies of the same listener', function () {
                 const car = new Car();
@@ -315,8 +325,8 @@ testTypesArr.forEach(function (evClass) {
                 const type1 = 'something1';
                 const func1 = function () {};
                 const func2 = function () {};
-                const options1 = {passive: true};
-                const options2 = {passive: false};
+                const options1 = {capture: true};
+                const options2 = {capture: false};
 
                 expect(car.hasEventListener(type1, func1)).to.be.false;
                 expect(car.hasEventListener(type1, func2)).to.be.false;
@@ -328,6 +338,8 @@ testTypesArr.forEach(function (evClass) {
                 expect(car.hasEventListener(type1, func1)).to.be.false;
                 expect(car.hasEventListener(type1, func2)).to.be.true;
 
+                // `capture` (unlike `passive`/`once`/`signal`) does distinguish
+                //   one listener registration from another.
                 expect(car.hasEventListener(type1, func1, options1)).to.be.false;
                 expect(car.hasEventListener(type1, func1, options2)).to.be.false;
                 car.addEventListener(type1, func1, options1);
@@ -636,9 +648,6 @@ testTypesArr.forEach(function (evClass) {
                 const func2 = function () {
                 };
 
-                const options1 = {passive: true};
-                const options2 = {passive: false};
-
                 expect(car.hasEventListener(type1, func1)).to.be.false;
                 car.addEventListener(type1, func1);
                 expect(car.hasEventListener(type1, func1)).to.be.true;
@@ -647,13 +656,14 @@ testTypesArr.forEach(function (evClass) {
                 car.addEventListener(type1, func2);
                 expect(car.hasEventListener(type1, func2)).to.be.true;
 
-                expect(car.hasEventListener(type1, func1, options1)).to.be.false;
-                car.addEventListener(type1, func1, options1);
-                expect(car.hasEventListener(type1, func1, options1)).to.be.true;
+                // A genuinely distinct registration (different `capture`).
+                expect(car.hasEventListener(type1, func1, {capture: true})).to.be.false;
+                car.addEventListener(type1, func1, {capture: true});
+                expect(car.hasEventListener(type1, func1, {capture: true})).to.be.true;
 
-                expect(car.hasEventListener(type1, func1, options2)).to.be.false;
-                car.addEventListener(type1, func1, options2);
-                expect(car.hasEventListener(type1, func1, options2)).to.be.true;
+                // `passive` alone doesn't distinguish it from the existing
+                //   (capture: false) registration -- it's detected as the same one.
+                expect(car.hasEventListener(type1, func1, {passive: true})).to.be.true;
             });
             it('should not detect added listener of different type, listener, or options', function () {
                 const car = new Car();
@@ -666,15 +676,13 @@ testTypesArr.forEach(function (evClass) {
                 const func2 = function () {
                 };
 
-                const options1 = {passive: true};
-                const options2 = {passive: false};
-
                 car.addEventListener(type1, func1);
                 expect(car.hasEventListener(type2, func1)).to.be.false;
                 expect(car.hasEventListener(type1, func2)).to.be.false;
 
-                car.addEventListener(type1, func1, options1);
-                expect(car.hasEventListener(type1, func1, options2)).to.be.false;
+                // Differs from the existing (capture: false) registration in
+                //   `capture` -- a genuinely distinct listener, not yet added.
+                expect(car.hasEventListener(type1, func1, {capture: true})).to.be.false;
             });
         });
 

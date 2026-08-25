@@ -1,5 +1,9 @@
 # CHANGES for eventtargeter
 
+## 0.12.0
+
+- fix: spec-conformant listener identity, signal validation, and timing
+
 ## 0.11.0
 
 - feat: real, subclassable `EventTarget`; `composedPath()`; `signal` option; drop `setPrototypeOfCustomEvent()`
