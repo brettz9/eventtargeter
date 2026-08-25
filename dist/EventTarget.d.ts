@@ -95,25 +95,27 @@ declare const ShimDOMException: {
  * to properly set `target`, etc.
  * The regular DOM method `dispatchEvent` won't work with this polyfill as
  * it expects a native event.
- * @class
- * @param {string} type
- * @this {EventWithProps}
  */
-declare const ShimEvent: {
-    (this: EventWithProps, type: string): void;
-    [Symbol.toStringTag]: string;
-    readonly prototype: any;
-};
+declare class Event {
+    /**
+     * @param {string} type
+     */
+    constructor(type: string);
+}
+declare const ShimEvent: typeof Event;
 /**
- * @class
- * @param {string} type
- * @this {EventWithProps}
+ * `CustomEvent extends Event` via a real `class`: `super()`'s call into
+ *   `Event`'s own constructor already gives this the correct prototype
+ *   chain (`CustomEvent.prototype.__proto__ === Event.prototype`) and
+ *   `new.target` propagation for any further subclass.
  */
-declare const ShimCustomEvent: {
-    (this: EventWithProps, type: string): void;
-    [Symbol.toStringTag]: string;
-    readonly prototype: any;
-};
+declare class CustomEvent extends Event {
+    /**
+     * @param {string} type
+     */
+    constructor(type: string);
+}
+declare const ShimCustomEvent: typeof CustomEvent;
 export type ListenerOptions = {
     /**
      * Remove listener after invoking once
@@ -185,9 +187,5 @@ declare const EventTargetFactory: {
      */
     createInstance(customOptions?: CustomOptions): EventTarget;
 };
-/**
- * @returns {void}
- */
-declare function setPrototypeOfCustomEvent(): void;
-export { setPrototypeOfCustomEvent, EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException };
+export { EventTargetFactory, EventTarget as ShimEventTarget, ShimEvent, ShimCustomEvent, ShimDOMException };
 //# sourceMappingURL=EventTarget.d.ts.map

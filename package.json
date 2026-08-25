@@ -1,6 +1,6 @@
 {
   "name": "eventtargeter",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "W3C JavaScript events for custom objects",
   "main": "./dist/cjs/index.js",
   "module": "./dist/index-es.js",

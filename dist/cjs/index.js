@@ -145,32 +145,59 @@
 
     // Todo: Set _ev argument outside of this function
 
-    /* eslint-disable func-name-matching -- Shim vs. Polyfill */
-    /* eslint-disable no-shadow -- Polyfilling */
     /**
-     * We use an adapter class rather than a proxy not only for compatibility
-     * but also since we have to clone native event properties anyways in order
-     * to properly set `target`, etc.
-     * The regular DOM method `dispatchEvent` won't work with this polyfill as
-     * it expects a native event.
-     * @class
-     * @param {string} type
-     * @this {EventWithProps}
+     * Defines own-property getters on `instance` for each named prop, each
+     *   preferring `_evCfg`'s own value (e.g. set by `initEvent`), falling
+     *   back to whatever the wrapped `_ev` (a real native event, or another
+     *   `Event` this one is copying, per `copyEvent`) has, and finally a
+     *   spec-shaped default. Shared by `Event`'s own base properties and, via
+     *   its own extra call, `CustomEvent`'s `detail`/`initCustomEvent` --
+     *   factored out so neither needs any special-casing of the other to know
+     *   which extra properties to define.
+     * @param {EventWithProps} instance
+     * @param {string[]} props
+     * @param {EventWithProps} _evCfg
+     * @param {EventWithProps} _ev
+     * @returns {void}
      */
-    const ShimEvent = function Event(type) {
-      /* eslint-enable func-name-matching -- Shim vs. Polyfill */
-      /* eslint-enable no-shadow -- Polyfilling */
-      // @ts-expect-error
-      this[Symbol.toStringTag] = 'Event';
-      this.toString = () => {
-        return '[object Event]';
-      };
-      // For WebIDL checks of function's `length`, we check `arguments` for the optional arguments
-      // eslint-disable-next-line prefer-rest-params -- Don't want to change signature
-      let [, evInit, _ev] = arguments;
-      if (!arguments.length) {
-        throw new TypeError("Failed to construct 'Event': 1 argument required, but only 0 present.");
-      }
+    function definePassthroughProps(instance, props, _evCfg, _ev) {
+      Object.defineProperties(instance, props.reduce((obj, pr) => {
+        const prop =
+        /**
+         * @type {"type"|"bubbles"|"cancelable"|"isTrusted"|
+         *   "timeStamp"|"initEvent"|"composedPath"|"composed"|
+         *   "detail"|"initCustomEvent"
+         * }
+         */
+        pr;
+        obj[prop] = {
+          configurable: true,
+          get() {
+            return Object.hasOwn(_evCfg, prop) ? _evCfg[prop] : Reflect.has(_ev, prop) ? _ev[prop] : ['bubbles', 'cancelable', 'composed'].includes(prop) ? false : undefined;
+          }
+        };
+        return obj;
+      }, /** @type {{[key: string]: any}} */{}));
+    }
+
+    /**
+     * The shared setup behind `Event`'s own constructor: populates the
+     *   WeakMap-backed internal state and defines the base `Event` own-
+     *   property getters on `instance`. Kept as a plain, reusable function
+     *   (not just inlined into the constructor) so
+     *   `CustomEvent.prototype.initCustomEvent` -- which, per the legacy DOM
+     *   Level 3 `initEvent`-family API, must remain callable *after*
+     *   construction to reinitialize an existing instance, not only from
+     *   within the constructor -- can re-run this directly on an existing
+     *   instance without trying to re-invoke a class constructor (illegal
+     *   outside of `new`/`super()`).
+     * @param {EventWithProps} instance
+     * @param {string} type
+     * @param {EventInit} [evInit]
+     * @param {EventWithProps} [_ev]
+     * @returns {void}
+     */
+    function initEventInternal(instance, type, evInit, _ev) {
       evInit ||= {};
       _ev ||= {};
 
@@ -183,14 +210,15 @@
       // _evCfg.isTrusted = true; // We are not always using this for user-created events
       // _evCfg.timeStamp = new Date().valueOf(); // This is no longer a timestamp, but monotonic (elapsed?)
 
-      ev.set(this, _ev);
-      evCfg.set(this, _evCfg);
-      /** @type {(type: string, bubbles: boolean, cancelable: boolean) => void} */
-      this.initEvent(type, evInit.bubbles, evInit.cancelable);
+      ev.set(instance, _ev);
+      evCfg.set(instance, _evCfg);
+      /** @type {(type: string, bubbles?: boolean, cancelable?: boolean) => void} */
+      instance.initEvent(type, evInit.bubbles, evInit.cancelable);
       ['target', 'currentTarget', 'eventPhase', 'defaultPrevented'].forEach(pr => {
         const prop = /** @type {"target"|"currentTarget"|"eventPhase"|"defaultPrevented"} */
         pr;
-        Object.defineProperty(this, prop, {
+        Object.defineProperty(instance, prop, {
+          configurable: true,
           get() {
             return (/* prop in _evCfg && */_evCfg[prop] !== undefined) ? _evCfg[prop] : Reflect.has(_ev, prop) ? _ev[prop] :
             // Defaults
@@ -201,53 +229,82 @@
 
       // Legacy alias of `.defaultPrevented`/`.preventDefault()`; not backed by
       //   `_evCfg` like the rest since it's derived, not stored.
-      Object.defineProperty(this, 'returnValue', {
+      Object.defineProperty(instance, 'returnValue', {
         enumerable: true,
         configurable: true,
         get() {
-          return !this.defaultPrevented;
+          return !instance.defaultPrevented;
         },
         set(val) {
           if (val === false) {
-            /** @type {() => void} */this.preventDefault();
+            /** @type {() => void} */instance.preventDefault();
           }
         }
       });
-      const props = [
+      definePassthroughProps(instance, [
       // Event
       'type', 'bubbles', 'cancelable',
       // Defaults to false
-      'isTrusted', 'timeStamp', 'initEvent',
+      'isTrusted', 'timeStamp',
+      // `initEvent` deliberately excluded: it's an *operation*, not a data
+      //   attribute -- shadowing it here (the same way `type`/`bubbles`/
+      //   etc. legitimately need to reflect a wrapped/copied event) would
+      //   permanently replace the real, callable prototype method with a
+      //   plain data getter (returning `undefined` for any event not
+      //   wrapping a native one with its own `initEvent`), breaking both
+      //   re-callability and idlharness's "operation" conformance checks.
       // Other event properties (not used by our code)
-      'composed'];
-      if (this.toString() === '[object CustomEvent]') {
-        props.push('detail', 'initCustomEvent');
-      }
-      Object.defineProperties(this, props.reduce((obj, pr) => {
-        const prop =
-        /**
-         * @type {"type"|"bubbles"|"cancelable"|"isTrusted"|
-         *   "timeStamp"|"initEvent"|"composedPath"|"composed"|
-         *   "detail"|"initCustomEvent"
-         * }
-         */
-        pr;
-        obj[prop] = {
-          get() {
-            return Object.hasOwn(_evCfg, prop) ? _evCfg[prop] : Reflect.has(_ev, prop) ? _ev[prop] : ['bubbles', 'cancelable', 'composed'].includes(prop) ? false : undefined;
-          }
+      'composed'], _evCfg, _ev);
+    }
+
+    /* eslint-disable no-shadow -- Polyfilling */
+    /**
+     * We use an adapter class rather than a proxy not only for compatibility
+     * but also since we have to clone native event properties anyways in order
+     * to properly set `target`, etc.
+     * The regular DOM method `dispatchEvent` won't work with this polyfill as
+     * it expects a native event.
+     */
+    class Event {
+      /* eslint-enable no-shadow -- Polyfilling */
+      /**
+       * @param {string} type
+       */
+      constructor(type) {
+        // eslint-disable-next-line consistent-this -- TS constructors can't use `@this`
+        const me = /** @type {EventWithProps} */ /** @type {unknown} */this;
+        // @ts-expect-error Symbol not part of the string index signature
+        me[Symbol.toStringTag] = 'Event';
+        me.toString = () => {
+          return '[object Event]';
         };
-        return obj;
-      }, /** @type {{[key: string]: any}} */{}));
-    };
+        // For WebIDL checks of function's `length`, we check `arguments` for the optional arguments
+        // eslint-disable-next-line prefer-rest-params -- Don't want to change signature
+        const [, evInit, _ev] = arguments;
+        if (!arguments.length) {
+          throw new TypeError("Failed to construct 'Event': 1 argument required, but only 0 present.");
+        }
+        initEventInternal(me, type, evInit, _ev);
+      }
+    }
+    const ShimEvent = Event;
 
     // Named function expressions (rather than anonymous ones assigned via
     //   member-expression `=`, which per spec never get an inferred `.name`)
     //   so `.name` matches the WebIDL operation identifier, e.g. for
     //   `idlharness.js`'s "property has wrong .name" checks.
 
+    // A real class's own declared shape doesn't include methods added to its
+    //   `.prototype` afterward (unlike the plain-function `.prototype` this
+    //   used to be, which TS treats far more loosely) -- assigning through
+    //   this untyped alias, rather than `ShimEvent.prototype` directly, keeps
+    //   that dynamic-augmentation pattern working without a `@ts-expect-error`
+    //   on every single line below.
+    /** @type {any} */
+    const ShimEventProto = ShimEvent.prototype;
+
     /** @this {EventWithProps} */
-    ShimEvent.prototype.preventDefault = function preventDefault() {
+    ShimEventProto.preventDefault = function preventDefault() {
       if (!(this instanceof ShimEvent)) {
         throw new TypeError('Illegal invocation');
       }
@@ -271,7 +328,7 @@
      * @this {EventWithProps}
      * @returns {EventTargetInstance[]}
      */
-    ShimEvent.prototype.composedPath = function composedPath() {
+    ShimEventProto.composedPath = function composedPath() {
       if (!(this instanceof ShimEvent)) {
         throw new TypeError('Illegal invocation');
       }
@@ -283,13 +340,13 @@
     };
 
     /** @this {EventWithProps} */
-    ShimEvent.prototype.stopImmediatePropagation = function stopImmediatePropagation() {
+    ShimEventProto.stopImmediatePropagation = function stopImmediatePropagation() {
       const _evCfg = getEvCfg(this);
       _evCfg._stopImmediatePropagation = true;
     };
 
     /** @this {EventWithProps} */
-    ShimEvent.prototype.stopPropagation = function stopPropagation() {
+    ShimEventProto.stopPropagation = function stopPropagation() {
       const _evCfg = getEvCfg(this);
       _evCfg._stopPropagation = true;
     };
@@ -300,7 +357,7 @@
      * @param {boolean} [cancelable]
      * @this {EventWithProps}
      */
-    ShimEvent.prototype.initEvent = function initEvent(type, bubbles = false, cancelable = false) {
+    ShimEventProto.initEvent = function initEvent(type, bubbles = false, cancelable = false) {
       // WebIDL's optional args (defaulted here) keep `.length` at 1, matching real browsers
       const _evCfg = getEvCfg(this);
       if (_evCfg._dispatched) {
@@ -400,43 +457,44 @@
         value: i
       });
     });
+    // @ts-expect-error Not part of the class body itself
     ShimEvent[Symbol.toStringTag] = 'Function';
-    ShimEvent.prototype[Symbol.toStringTag] = 'EventPrototype';
-    Object.defineProperty(ShimEvent, 'prototype', {
-      writable: false
-    });
+    ShimEventProto[Symbol.toStringTag] = 'EventPrototype';
+    // A real class's own `.prototype` is already non-writable/non-configurable
+    //   per spec, so no explicit freeze is needed here.
 
-    /* eslint-disable func-name-matching -- Polyfill */
     /* eslint-disable no-shadow -- Polyfill */
     /**
-     * @class
-     * @param {string} type
-     * @this {EventWithProps}
+     * `CustomEvent extends Event` via a real `class`: `super()`'s call into
+     *   `Event`'s own constructor already gives this the correct prototype
+     *   chain (`CustomEvent.prototype.__proto__ === Event.prototype`) and
+     *   `new.target` propagation for any further subclass.
      */
-    const ShimCustomEvent = function CustomEvent(type) {
-      /* eslint-enable func-name-matching -- Polyfill */
+    class CustomEvent extends Event {
       /* eslint-enable no-shadow -- Polyfill */
-
-      // eslint-disable-next-line prefer-const, prefer-rest-params -- Keep signature
-      let [, evInit, _ev] = arguments;
-      // @ts-expect-error Casting doesn't work
-      ShimEvent.call(this, type, evInit, _ev);
-      // @ts-expect-error
-      this[Symbol.toStringTag] = 'CustomEvent';
-      this.toString = () => {
-        return '[object CustomEvent]';
-      };
-      // var _evCfg = evCfg.get(this);
-      evInit ||= {};
-      // @ts-ignore
-      this.initCustomEvent(type, evInit.bubbles, evInit.cancelable, 'detail' in evInit ? evInit.detail : null);
-    };
-    Object.defineProperty(ShimCustomEvent.prototype, 'constructor', {
-      enumerable: false,
-      writable: true,
-      configurable: true,
-      value: ShimCustomEvent
-    });
+      /**
+       * @param {string} type
+       */
+      constructor(type) {
+        // eslint-disable-next-line prefer-const, prefer-rest-params -- Keep signature
+        let [, evInit, _ev] = arguments;
+        // @ts-expect-error Casting doesn't work
+        super(type, evInit, _ev);
+        // eslint-disable-next-line consistent-this -- TS constructors can't use `@this`
+        const me = /** @type {EventWithProps} */ /** @type {unknown} */this;
+        // @ts-expect-error Symbol not part of the string index signature
+        me[Symbol.toStringTag] = 'CustomEvent';
+        me.toString = () => {
+          return '[object CustomEvent]';
+        };
+        evInit ||= {};
+        // @ts-ignore
+        me.initCustomEvent(type, evInit.bubbles, evInit.cancelable, 'detail' in evInit ? evInit.detail : null);
+      }
+    }
+    const ShimCustomEvent = CustomEvent;
+    /** @type {any} */
+    const ShimCustomEventProto = ShimCustomEvent.prototype;
     /**
      * @param {string} type
      * @param {boolean} [bubbles]
@@ -444,18 +502,18 @@
      * @param {any} [detail]
      * @this {EventWithProps}
      */
-    ShimCustomEvent.prototype.initCustomEvent = function initCustomEvent(type, bubbles = false, cancelable = false, detail = null) {
+    ShimCustomEventProto.initCustomEvent = function initCustomEvent(type, bubbles = false, cancelable = false, detail = null) {
       // WebIDL's optional args (defaulted here) keep `.length` at 1
       if (!(this instanceof ShimCustomEvent)) {
         throw new TypeError('Illegal invocation');
       }
       const _evCfg = getEvCfg(this);
-      // @ts-expect-error Casting doesn't work
-      ShimCustomEvent.call(this, type, {
+      // @ts-expect-error `detail` isn't part of `EventInit`, only used internally here
+      // eslint-disable-next-line prefer-rest-params -- Keep signature
+      initEventInternal(this, type, {
         bubbles,
         cancelable,
         detail
-        // eslint-disable-next-line prefer-rest-params -- Keep signature
       }, arguments[4]);
       if (_evCfg._dispatched) {
         return;
@@ -463,14 +521,14 @@
       if (detail !== undefined) {
         _evCfg.detail = detail;
       }
-      Object.defineProperty(this, 'detail', {
-        get() {
-          return _evCfg.detail;
-        }
-      });
+      // `initCustomEvent` deliberately excluded -- see the matching comment
+      //   in `initEventInternal` for `initEvent`, above; the same reasoning
+      //   applies here.
+      definePassthroughProps(this, ['detail'], _evCfg, ev.get(this));
     };
+    // @ts-expect-error Not part of the class body itself
     ShimCustomEvent[Symbol.toStringTag] = 'Function';
-    ShimCustomEvent.prototype[Symbol.toStringTag] = 'CustomEventPrototype';
+    ShimCustomEventProto[Symbol.toStringTag] = 'CustomEventPrototype';
     {
       const get = function () {
         throw new TypeError('Illegal invocation');
@@ -485,9 +543,8 @@
         get
       });
     }
-    Object.defineProperty(ShimCustomEvent, 'prototype', {
-      writable: false
-    });
+    // A real class's own `.prototype` is already non-writable/non-configurable
+    //   per spec, so no explicit freeze is needed here.
 
     /**
      *
@@ -1150,20 +1207,10 @@
     EventTarget.ShimEventTarget = EventTarget;
     EventTarget.EventTargetFactory = EventTargetFactory;
 
-    /**
-     * @returns {void}
-     */
-    function setPrototypeOfCustomEvent() {
-      // TODO: IDL needs but reported as slow!
-      Object.setPrototypeOf(ShimCustomEvent, /** @type {object} */ShimEvent);
-      Object.setPrototypeOf(ShimCustomEvent.prototype, ShimEvent.prototype);
-    }
-
     exports.EventTargetFactory = EventTargetFactory;
     exports.ShimCustomEvent = ShimCustomEvent;
     exports.ShimDOMException = ShimDOMException;
     exports.ShimEvent = ShimEvent;
     exports.ShimEventTarget = EventTarget;
-    exports.setPrototypeOfCustomEvent = setPrototypeOfCustomEvent;
 
 }));

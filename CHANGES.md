@@ -1,8 +1,8 @@
 # CHANGES for eventtargeter
 
-## 0.11.0 (unreleased)
+## 0.11.0
 
-- feat: real, subclassable EventTarget; composedPath(); signal option
+- feat: real, subclassable `EventTarget`; `composedPath()`; `signal` option; drop `setPrototypeOfCustomEvent()`
 
 ## 0.10.1
 
