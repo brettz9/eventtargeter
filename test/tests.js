@@ -599,37 +599,44 @@ testTypesArr.forEach(function (evClass) {
         });
 
         describe('Browser fallback', function () {
-            it('should use window.dispatchEvent', function (done) {
-                Object.defineProperties(globalThis, {
-                    window: {
-                        configurable: true,
-                        value: {
-                            /** @param {Event} errEv */
-                            dispatchEvent (errEv) {
-                                expect(errEv.type).to.equal('error');
-                                Reflect.deleteProperty(globalThis, 'window');
-                                Reflect.deleteProperty(globalThis, 'ErrorEvent');
-                                done();
+            // `window` is `globalThis` itself (and non-configurable) in a real
+            //   browser, so this mock -- which simulates the browser fallback
+            //   from *within* Node, where `window` isn't already global --
+            //   can only run there.
+            if (typeof window === 'undefined') {
+                // eslint-disable-next-line mocha/no-conditional-tests -- Node-only mock
+                it('should use window.dispatchEvent', function (done) {
+                    Object.defineProperties(globalThis, {
+                        window: {
+                            configurable: true,
+                            value: {
+                                /** @param {Event} errEv */
+                                dispatchEvent (errEv) {
+                                    expect(errEv.type).to.equal('error');
+                                    Reflect.deleteProperty(globalThis, 'window');
+                                    Reflect.deleteProperty(globalThis, 'ErrorEvent');
+                                    done();
+                                }
+                            }
+                        },
+                        ErrorEvent: {
+                            configurable: true,
+                            /** Mock `ErrorEvent` for testing the browser fallback path. */
+                            value: class MockErrorEvent {
+                                /** @param {string} type */
+                                constructor (type) {
+                                    this.type = type;
+                                }
                             }
                         }
-                    },
-                    ErrorEvent: {
-                        configurable: true,
-                        /** Mock `ErrorEvent` for testing the browser fallback path. */
-                        value: class MockErrorEvent {
-                            /** @param {string} type */
-                            constructor (type) {
-                                this.type = type;
-                            }
-                        }
-                    }
+                    });
+                    const car = new Car();
+                    car.addEventListener('start', function () {
+                        throw new Error('mock error');
+                    });
+                    car.start();
                 });
-                const car = new Car();
-                car.addEventListener('start', function () {
-                    throw new Error('mock error');
-                });
-                car.start();
-            });
+            }
         });
         describe('_extraProperties', function () {
             it('should copy extra properties', function (done) {

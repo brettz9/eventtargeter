@@ -6,19 +6,26 @@
         <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon" />
         <link rel="stylesheet" media="all" href="../node_modules/mocha/mocha.css" />
         <script src="../node_modules/mocha/mocha.js"></script>
-        <script src="../node_modules/chai/chai.js"></script>
     </head>
     <body>
         <div id="mocha"></div>
         <div id="messages"></div>
         <div id="fixtures"></div>
-        <script>
-            /* globals chai -- No ESM */
-            mocha.setup('bdd');
-            window.expect = chai.expect;
+        <script type="importmap">
+            {
+                "imports": {
+                    "chai": "../node_modules/chai/index.js"
+                }
+            }
         </script>
-        <script type="module" src="../tests/tests.js"></script><!-- We use this type of path for sake of server too -->
         <script type="module">
+            import * as chai from 'chai';
+            window.expect = chai.expect;
+            mocha.setup('bdd');
+        </script>
+        <script type="module">
+            // We use this type of path for sake of server too
+            import './tests.js';
             mocha.run();
         </script>
     </body>
