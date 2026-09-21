@@ -598,6 +598,69 @@ testTypesArr.forEach(function (evClass) {
             });
         });
 
+        describe('Browser fallback', function () {
+            it('should use window.dispatchEvent', function (done) {
+                Object.defineProperties(globalThis, {
+                    window: {
+                        configurable: true,
+                        value: {
+                            /** @param {Event} errEv */
+                            dispatchEvent (errEv) {
+                                expect(errEv.type).to.equal('error');
+                                Reflect.deleteProperty(globalThis, 'window');
+                                Reflect.deleteProperty(globalThis, 'ErrorEvent');
+                                done();
+                            }
+                        }
+                    },
+                    ErrorEvent: {
+                        configurable: true,
+                        /** Mock `ErrorEvent` for testing the browser fallback path. */
+                        value: class MockErrorEvent {
+                            /** @param {string} type */
+                            constructor (type) {
+                                this.type = type;
+                            }
+                        }
+                    }
+                });
+                const car = new Car();
+                car.addEventListener('start', function () {
+                    throw new Error('mock error');
+                });
+                car.start();
+            });
+        });
+        describe('_extraProperties', function () {
+            it('should copy extra properties', function (done) {
+                const car = new Car();
+                car._extraProperties = ['foo'];
+                const e = newEvent('start');
+                asEventWithProps(e).foo = 'bar';
+                car.addEventListener('start', function (ev) {
+                    expect(ev.foo).to.equal('bar');
+                    done();
+                });
+                car.dispatchEvent(asEventWithProps(e));
+            });
+        });
+
+        describe('Removal during dispatch', function () {
+            it('should not fire listeners removed by previous listeners', function () {
+                const car = new Car();
+                let count = 0;
+                const func2 = function () {
+                    count++;
+                };
+                car.addEventListener('start', function () {
+                    car.removeEventListener('start', func2);
+                });
+                car.addEventListener('start', func2);
+                car.start();
+                expect(count).to.equal(0);
+            });
+        });
+
         describe('on* events', function () {
             it('`return false` should prevent default but not stop propagation', function (done) {
                 let propagated = false;
@@ -606,6 +669,9 @@ testTypesArr.forEach(function (evClass) {
                     ['childA', [['grandchildA1'], ['grandchildA2']]],
                     ['childB', [['grandchildB1'], ['grandchildB2']]]
                 ]);
+                catTree.children[1].addEventListener('bubbl', function () {});
+                catTree.children[1].addEventListener('bubbl', function () {});
+
                 catTree.children[1].onbubbl = function () {
                     return false;
                 };

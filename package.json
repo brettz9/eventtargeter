@@ -37,6 +37,11 @@
     "browser-test": "npm run eslint && npm run build && open-cli http://localhost:8090/test/ && npm start"
   },
   "c8": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100,
+    "statements": 100,
     "reporter": [
       "html",
       "text"

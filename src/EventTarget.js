@@ -118,7 +118,7 @@ const ShimDOMException = typeof DOMException === 'undefined'
     }
     : DOMException;
 
-/** @type {WeakMap<object, any>} */
+/** @type {WeakMap<object, EventWithProps>} */
 const ev = new WeakMap();
 /** @type {WeakMap<object, EventWithProps>} */
 const evCfg = new WeakMap();
@@ -177,7 +177,7 @@ function definePassthroughProps (instance, props, _evCfg, _ev) {
             }
         };
         return obj;
-    }, /** @type {{[key: string]: any}} */ ({})));
+    }, /** @type {PropertyDescriptorMap} */ ({})));
 }
 
 /**
@@ -200,7 +200,7 @@ function getIsTrusted () {
         throw new TypeError('Illegal invocation');
     }
     const _evCfg = getEvCfg(this);
-    const _ev = ev.get(this);
+    const _ev = /** @type {EventWithProps} */ ((/** @type {EventWithProps} */ (ev.get(this))));
     return Boolean(
         Object.hasOwn(_evCfg, 'isTrusted')
             ? _evCfg.isTrusted
@@ -372,15 +372,15 @@ const ShimEvent = Event;
 //   this untyped alias, rather than `ShimEvent.prototype` directly, keeps
 //   that dynamic-augmentation pattern working without a `@ts-expect-error`
 //   on every single line below.
-/** @type {any} */
-const ShimEventProto = ShimEvent.prototype;
+
+const ShimEventProto = /** @type {Record<PropertyKey, unknown>} */ (/** @type {unknown} */ (ShimEvent.prototype));
 
 /** @this {EventWithProps} */
 ShimEventProto.preventDefault = function preventDefault () {
     if (!(this instanceof ShimEvent)) {
         throw new TypeError('Illegal invocation');
     }
-    const _ev = ev.get(this);
+    const _ev = /** @type {EventWithProps} */ ((/** @type {EventWithProps} */ (ev.get(this))));
     const _evCfg = getEvCfg(this);
     if (this.cancelable && !_evCfg._passive) {
         _evCfg.defaultPrevented = true;
@@ -568,13 +568,13 @@ class CustomEvent extends Event {
     }
 }
 const ShimCustomEvent = CustomEvent;
-/** @type {any} */
-const ShimCustomEventProto = ShimCustomEvent.prototype;
+
+const ShimCustomEventProto = /** @type {Record<PropertyKey, unknown>} */ (/** @type {unknown} */ (ShimCustomEvent.prototype));
 /**
  * @param {string} type
  * @param {boolean} [bubbles]
  * @param {boolean} [cancelable]
- * @param {any} [detail]
+ * @param {unknown} [detail]
  * @this {EventWithProps}
  */
 ShimCustomEventProto.initCustomEvent = function initCustomEvent (type, bubbles = false, cancelable = false, detail = null) { // WebIDL's optional args (defaulted here) keep `.length` at 1
@@ -596,7 +596,7 @@ ShimCustomEventProto.initCustomEvent = function initCustomEvent (type, bubbles =
     // `initCustomEvent` deliberately excluded -- see the matching comment
     //   in `initEventInternal` for `initEvent`, above; the same reasoning
     //   applies here.
-    definePassthroughProps(this, ['detail'], _evCfg, ev.get(this));
+    definePassthroughProps(this, ['detail'], _evCfg, (/** @type {EventWithProps} */ (ev.get(this))));
 };
 // @ts-expect-error Not part of the class body itself
 ShimCustomEvent[Symbol.toStringTag] = 'Function';
@@ -990,8 +990,8 @@ Object.assign(EventTarget.prototype, {
             /** @type {string[]} */
             (this._extraProperties).forEach((prop) => {
                 if (Reflect.has(e, prop)) {
-                    /** @type {{[key: string]: any}} */ (eventCopy)[prop] =
-                        /** @type {{[key: string]: any}} */ (e)[prop]; // Todo: Put internal to `ShimEvent`?
+                    /** @type {PropertyDescriptorMap} */ (eventCopy)[prop] =
+                        /** @type {PropertyDescriptorMap} */ (e)[prop]; // Todo: Put internal to `ShimEvent`?
                 }
             });
         }
