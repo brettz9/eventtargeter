@@ -102,6 +102,7 @@ const phases = {
 const ShimDOMException = typeof DOMException === 'undefined'
 // Todo: Better polyfill (if even needed here)
 /* eslint-disable no-shadow -- Polyfill */
+/* c8 ignore start -- Only reachable when the global `DOMException` is absent, which it never is in this project's test environment (Node always provides it) */
 // eslint-disable-next-line @stylistic/operator-linebreak -- TS/JSDoc needs
 ?
 /**
@@ -119,7 +120,8 @@ function DOMException(msg, name) {
     configurable: true
   });
   return err;
-} : DOMException;
+}
+/* c8 ignore stop */ : DOMException;
 
 /** @type {WeakMap<object, EventWithProps>} */
 const ev = new WeakMap();
@@ -167,7 +169,8 @@ function definePassthroughProps(instance, props, _evCfg, _ev) {
     obj[prop] = {
       configurable: true,
       get() {
-        return Object.hasOwn(_evCfg, prop) ? _evCfg[prop] : Reflect.has(_ev, prop) ? _ev[prop] : ['bubbles', 'cancelable', 'composed'].includes(prop) ? false : undefined;
+        return Object.hasOwn(_evCfg, prop) ? _evCfg[prop] : Reflect.has(_ev, prop) ? _ev[prop] : ['bubbles', 'cancelable', 'composed'].includes(prop) ? false
+        /* c8 ignore next -- Every prop this is ever called with ('type'/'bubbles'/'cancelable'/'timeStamp'/'composed'/'detail') always ends up set on `_evCfg` or `_ev` by the time it's read, so this is unreachable */ : undefined;
       }
     };
     return obj;
@@ -195,7 +198,8 @@ function getIsTrusted() {
   }
   const _evCfg = getEvCfg(this);
   const _ev = /** @type {EventWithProps} */ /** @type {EventWithProps} */ev.get(this);
-  return Boolean(Object.hasOwn(_evCfg, 'isTrusted') ? _evCfg.isTrusted : Reflect.has(_ev, 'isTrusted') && _ev.isTrusted);
+  return Boolean(Object.hasOwn(_evCfg, 'isTrusted')
+  /* c8 ignore next -- Nothing currently sets `_evCfg.isTrusted` (see the commented-out assignment above); kept for when/if it's revived */ ? _evCfg.isTrusted : Reflect.has(_ev, 'isTrusted') && _ev.isTrusted);
 }
 
 /**
@@ -553,6 +557,10 @@ ShimCustomEventProto.initCustomEvent = function initCustomEvent(type, bubbles = 
     throw new TypeError('Illegal invocation');
   }
   const _evCfg = getEvCfg(this);
+  if (_evCfg._dispatched) {
+    return;
+  }
+
   // @ts-expect-error `detail` isn't part of `EventInit`, only used internally here
   // eslint-disable-next-line prefer-rest-params -- Keep signature
   initEventInternal(this, type, {
@@ -560,9 +568,6 @@ ShimCustomEventProto.initCustomEvent = function initCustomEvent(type, bubbles = 
     cancelable,
     detail
   }, arguments[4]);
-  if (_evCfg._dispatched) {
-    return;
-  }
   if (detail !== undefined) {
     _evCfg.detail = detail;
   }
@@ -1069,6 +1074,7 @@ Object.assign(EventTarget.prototype, {
           if (child) {
             child._defaultSync = this._defaultSync;
           }
+          /* c8 ignore next -- `cfg._children` always has exactly as many entries as remaining capturing-phase steps (built from the same walk that starts this phase), so `child` is never falsy here; the `|| this` fallback is defensive only */
           return (child || this)._dispatchEvent(eventCopy, false);
         }
       case phases.AT_TARGET:

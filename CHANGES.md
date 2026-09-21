@@ -1,5 +1,10 @@
 # CHANGES for eventtargeter
 
+## 0.12.1
+
+- fix: `initCustomEvent` was resetting an event's internal state (wiping `target` back to `null`) *before* checking whether the event had already been dispatched, unlike its sibling `initEvent` which checks first. Re-invoking `initCustomEvent` on an in-flight `CustomEvent` crashed the dispatch machinery with a `null`-pointer error. Fixed by reordering the guard to match `initEvent`'s pattern (src/EventTarget.js:580).
+- test: coverage
+
 ## 0.12.0
 
 - fix: spec-conformant listener identity, signal validation, and timing

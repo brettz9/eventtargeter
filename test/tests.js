@@ -1328,5 +1328,390 @@ testTypesArr.forEach(function (evClass) {
                 });
             }
         });
+
+        // These exercise shim-only, legacy/spec edge cases (e.g. `initEvent`
+        //   re-initialization, `srcElement`/`returnValue` aliases,
+        //   `handleEvent` listeners, `signal` abort, illegal-invocation
+        //   guards) that aren't part of the native-vs-polyfill parity matrix
+        //   above, so they only need to run once, against the shim itself.
+        if (evClass === 'polyfill') {
+            // eslint-disable-next-line mocha/no-conditional-tests -- Shim-only tests
+            describe('Shim internals (legacy/spec edge cases)', function () {
+                it('should let `initEvent` reinitialize an undispatched event’s type/bubbles/cancelable', function () {
+                    const e = asEventWithProps(newEvent('before'));
+                    /** @type {(type: string, bubbles?: boolean, cancelable?: boolean) => void} */
+                    (e.initEvent)('after', true, true);
+                    expect(e.type).to.equal('after');
+                    expect(e.bubbles).to.be.true;
+                    expect(e.cancelable).to.be.true;
+                });
+
+                it('should make `initEvent` a no-op on an event that has already been dispatched', function () {
+                    const target = mixinEventTarget({});
+                    /** @type {string|undefined} */
+                    let typeAfterReinit;
+                    target.addEventListener('start', function (e) {
+                        /** @type {(type: string, bubbles?: boolean, cancelable?: boolean) => void} */
+                        (e.initEvent)('changed', true, true);
+                        typeAfterReinit = e.type;
+                    });
+                    target.dispatchEvent(asEventWithProps(new Event('start')));
+                    expect(typeAfterReinit).to.equal('start');
+                });
+
+                it('should return an empty `composedPath()` outside of dispatch', function () {
+                    const e = asEventWithProps(newEvent('start'));
+                    const path = /** @type {() => unknown[]} */ (e.composedPath)();
+                    expect(path).to.deep.equal([]);
+                });
+
+                it('should return the full target-to-root `composedPath()` while dispatching', function () {
+                    const target = mixinEventTarget({});
+                    let pathLength;
+                    target.addEventListener('start', function (e) {
+                        pathLength = /** @type {() => unknown[]} */ (e.composedPath)().length;
+                    });
+                    target.dispatchEvent(asEventWithProps(newEvent('start')));
+                    expect(pathLength).to.equal(1);
+                });
+
+                it('should alias `srcElement` to `target`', function () {
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', function (e) {
+                        expect(e.srcElement).to.equal(e.target);
+                    });
+                    target.dispatchEvent(asEventWithProps(newEvent('start')));
+                });
+
+                it('should get/set `returnValue` as the inverse of `defaultPrevented`, `preventDefault`-ing when set to `false`', function () {
+                    const e = asEventWithProps(newEvent('start', {cancelable: true}));
+                    expect(e.returnValue).to.be.true;
+                    e.returnValue = false;
+                    expect(e.defaultPrevented).to.be.true;
+                    expect(e.returnValue).to.be.false;
+                });
+
+                it('should expose `isTrusted` as `false` for script-constructed events', function () {
+                    const e = asEventWithProps(newEvent('start'));
+                    expect(e.isTrusted).to.be.false;
+                });
+
+                it('should expose `isTrusted` as `false` when copying a dispatched foreign event that itself has an `isTrusted` accessor', function () {
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', function (e) {
+                        expect(e.isTrusted).to.be.false;
+                    });
+                    target.dispatchEvent(asEventWithProps(new Event('start')));
+                });
+
+                it('should default `target`/`currentTarget` to `null` before dispatch', function () {
+                    const e = asEventWithProps(newEvent('start'));
+                    expect(e.target).to.be.null;
+                    expect(e.currentTarget).to.be.null;
+                });
+
+                it('should default `composed` to `false` for a plain event with no wrapped native event', function () {
+                    const e = asEventWithProps(newEvent('start'));
+                    expect(e.composed).to.be.false;
+                });
+
+                it('should set `composed` directly from event-init, without needing a wrapped native event', function () {
+                    // @ts-expect-error `composed` isn't part of `newEvent`'s narrower evInit type
+                    const e = asEventWithProps(new EventTarget.ShimEvent('start', {composed: true}));
+                    expect(e.composed).to.be.true;
+                });
+
+                it('should throw constructing an event with no arguments', function () {
+                    expect(function () {
+                        // @ts-expect-error Testing invalid arguments
+                        new EventTarget.ShimEvent(); // eslint-disable-line no-new -- Testing constructor throw
+                    }).to.throw(TypeError, "Failed to construct 'Event': 1 argument required, but only 0 present.");
+                });
+
+                it('should fall back to `Date.now()` for `timeStamp` when `performance.now` is unavailable', function () {
+                    const originalPerformance = performance;
+                    Reflect.deleteProperty(globalThis, 'performance');
+                    try {
+                        expect(asEventWithProps(newEvent('start')).timeStamp).to.be.a('number');
+                    } finally {
+                        globalThis.performance = originalPerformance;
+                    }
+                });
+
+                it('should throw "Illegal invocation" calling `isTrusted`’s getter unbound', function () {
+                    const e = asEventWithProps(newEvent('start'));
+                    const descriptor = Object.getOwnPropertyDescriptor(e, 'isTrusted');
+                    const getter = /** @type {() => boolean} */ ((descriptor || {}).get);
+                    expect(function () {
+                        getter.call({});
+                    }).to.throw(TypeError, 'Illegal invocation');
+                });
+
+                it('should throw "Illegal invocation" for `preventDefault`/`composedPath` called unbound', function () {
+                    const proto = /** @type {{preventDefault: () => void, composedPath: () => void}} */ (
+                        EventTarget.ShimEvent.prototype
+                    );
+                    expect(function () {
+                        proto.preventDefault.call({});
+                    }).to.throw(TypeError, 'Illegal invocation');
+                    expect(function () {
+                        proto.composedPath.call({});
+                    }).to.throw(TypeError, 'Illegal invocation');
+                });
+
+                it('should throw "Illegal invocation" accessing base event properties directly on the prototype', function () {
+                    const proto = /** @type {{[key: string]: unknown}} */ (EventTarget.ShimEvent.prototype);
+                    [
+                        'type', 'target', 'currentTarget', 'eventPhase', 'defaultPrevented',
+                        'bubbles', 'cancelable', 'timeStamp', 'composed', 'returnValue'
+                    ].forEach(function (prop) {
+                        expect(function () {
+                            // eslint-disable-next-line chai-friendly/no-unused-expressions -- Triggering getter
+                            proto[prop];
+                        }).to.throw(TypeError, 'Illegal invocation');
+                    });
+                    expect(function () {
+                        proto.returnValue = false;
+                    }).to.throw(TypeError, 'Illegal invocation');
+                    const customProto = /** @type {{[key: string]: unknown}} */ (EventTarget.ShimCustomEvent.prototype);
+                    expect(function () {
+                        // eslint-disable-next-line chai-friendly/no-unused-expressions -- Triggering getter
+                        customProto.detail;
+                    }).to.throw(TypeError, 'Illegal invocation');
+                });
+
+                it('should stringify as `[object Event]`', function () {
+                    expect(String(newEvent('start'))).to.equal('[object Event]');
+                });
+
+                it('should construct a `CustomEvent` with `detail`, and stringify as `[object CustomEvent]`', function () {
+                    const ce = asEventWithProps(
+                        // @ts-expect-error Casting doesn't work
+                        new EventTarget.ShimCustomEvent('custom', {detail: {a: 1}, bubbles: true, cancelable: true})
+                    );
+                    expect(ce.detail).to.deep.equal({a: 1});
+                    expect(ce.bubbles).to.be.true;
+                    expect(ce.cancelable).to.be.true;
+                    expect(String(ce)).to.equal('[object CustomEvent]');
+                });
+
+                it('should let `initCustomEvent` reinitialize an undispatched `CustomEvent`', function () {
+                    const ce = asEventWithProps(
+                        // @ts-expect-error Casting doesn't work
+                        new EventTarget.ShimCustomEvent('custom')
+                    );
+                    /** @type {(type: string, canBubble: boolean, cancelable: boolean, detail: unknown) => void} */
+                    (ce.initCustomEvent)('custom2', false, false, {b: 2});
+                    expect(ce.type).to.equal('custom2');
+                    expect(ce.detail).to.deep.equal({b: 2});
+                });
+
+                it('should throw "Illegal invocation" calling `initCustomEvent` unbound', function () {
+                    const proto = /** @type {{initCustomEvent: (type: string) => void}} */ (
+                        EventTarget.ShimCustomEvent.prototype
+                    );
+                    expect(function () {
+                        proto.initCustomEvent.call({}, 'x');
+                    }).to.throw(TypeError, 'Illegal invocation');
+                });
+
+                it('should make `initCustomEvent` a no-op on a `CustomEvent` that has already been dispatched', function () {
+                    const target = mixinEventTarget({});
+                    /** @type {unknown} */
+                    let detailAfterReinit;
+                    target.addEventListener('start', function (e) {
+                        /** @type {(type: string, canBubble: boolean, cancelable: boolean, detail: unknown) => void} */
+                        (e.initCustomEvent)('changed', true, true, 'ignored');
+                        detailAfterReinit = e.detail;
+                    });
+                    target.dispatchEvent(asEventWithProps(new CustomEvent('start', {detail: 'original'})));
+                    expect(detailAfterReinit).to.equal('original');
+                });
+
+                it('should allow direct construction via `new ShimEventTarget()`, not only `EventTargetFactory`', function () {
+                    const target = mixinEventTarget(new EventTarget());
+                    let fired = false;
+                    target.addEventListener('start', function () {
+                        fired = true;
+                    });
+                    target.dispatchEvent(asEventWithProps(newEvent('start')));
+                    expect(fired).to.be.true;
+                });
+
+                it('should call an object listener’s bound `handleEvent`', function () {
+                    let called = false;
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', {
+                        handleEvent () {
+                            called = true;
+                        }
+                    });
+                    target.dispatchEvent(asEventWithProps(newEvent('start')));
+                    expect(called).to.be.true;
+                });
+
+                it('should log and continue if reading a listener object’s `handleEvent` throws', function () {
+                    const target = mixinEventTarget({});
+                    /* eslint-disable no-console -- Stubbing to assert on it */
+                    const originalLog = console.log;
+                    let logged = false;
+                    console.log = function () {
+                        logged = true;
+                    };
+                    try {
+                        target.addEventListener('start', {
+                            // eslint-disable-next-line jsdoc/require-returns-check -- Always throws
+                            /** @returns {import('../src/EventTarget.js').Listener} */
+                            get handleEvent () {
+                                throw new Error('boom');
+                            }
+                        });
+                    } finally {
+                        console.log = originalLog;
+                    }
+                    /* eslint-enable no-console -- Stubbing to assert on it */
+                    expect(logged).to.be.true;
+                });
+
+                it('should throw "Illegal invocation" calling `addEventListener` unbound', function () {
+                    const target = mixinEventTarget({});
+                    const {addEventListener: unboundAddEventListener} = Object.getPrototypeOf(target);
+                    expect(function () {
+                        unboundAddEventListener.call({}, 'start', function () {});
+                    }).to.throw(TypeError, 'Illegal invocation');
+                });
+
+                it('should accept a boolean `capture` shorthand for `addEventListener`’s options', function () {
+                    let called = false;
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', function () {
+                        called = true;
+                    // eslint-disable-next-line unicorn/prefer-add-event-listener-options -- Testing legacy boolean form
+                    }, true);
+                    target.dispatchEvent(asEventWithProps(newEvent('start')));
+                    expect(called).to.be.true;
+                });
+
+                describe('`signal` option', function () {
+                    it('should remove the listener once the signal aborts', function () {
+                        const ac = new AbortController();
+                        const target = mixinEventTarget({});
+                        let count = 0;
+                        target.addEventListener('start', function () {
+                            count++;
+                        }, {signal: ac.signal});
+                        target.dispatchEvent(asEventWithProps(newEvent('start')));
+                        ac.abort();
+                        target.dispatchEvent(asEventWithProps(newEvent('start')));
+                        expect(count).to.equal(1);
+                    });
+
+                    it('should not add a listener whose signal is already aborted', function () {
+                        const ac = new AbortController();
+                        ac.abort();
+                        const target = mixinEventTarget({});
+                        let called = false;
+                        target.addEventListener('start', function () {
+                            called = true;
+                        }, {signal: ac.signal});
+                        target.dispatchEvent(asEventWithProps(newEvent('start')));
+                        expect(called).to.be.false;
+                    });
+
+                    it('should throw converting a non-`AbortSignal` `signal` value', function () {
+                        const target = mixinEventTarget({});
+                        expect(function () {
+                            // @ts-expect-error Testing invalid arguments
+                            target.addEventListener('start', function () {}, {signal: {}});
+                        }).to.throw(TypeError, "Failed to convert value to 'AbortSignal'.");
+                    });
+                });
+
+                it('should pass through a `composed` event-init property to a dispatched copy', function () {
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', function (e) {
+                        expect(e.composed).to.be.true;
+                    });
+                    target.dispatchEvent(asEventWithProps(new Event('start', {composed: true})));
+                });
+
+                it('should copy a dispatched foreign `CustomEvent`-shaped event as a `CustomEvent`', function () {
+                    const target = mixinEventTarget({});
+                    target.addEventListener('start', function (e) {
+                        expect(e.detail).to.deep.equal({x: 1});
+                    });
+                    target.dispatchEvent(asEventWithProps(new CustomEvent('start', {detail: {x: 1}})));
+                });
+
+                it('should throw `InvalidStateError` re-dispatching the same in-flight event copy', function () {
+                    const target = mixinEventTarget({});
+                    /** @type {Error|undefined} */
+                    let caught;
+                    target.addEventListener('start', function (e) {
+                        try {
+                            target.dispatchEvent(e);
+                        } catch (err) {
+                            caught = /** @type {Error} */ (err);
+                        }
+                    });
+                    target.dispatchEvent(asEventWithProps(new Event('start')));
+                    expect(caught).to.be.instanceOf(Error);
+                    expect((/** @type {Error & {name: string}} */ (caught)).name).to.equal('InvalidStateError');
+                });
+
+                it('should invoke the `on`-prefixed handler after the listener loop when fewer than 2 listeners are registered', function () {
+                    const target = mixinEventTarget({});
+                    target.onstart = function () {
+                        return false;
+                    };
+                    const ev = asEventWithProps(newEvent('start', {cancelable: true}));
+                    target.dispatchEvent(ev);
+                    expect(ev.defaultPrevented).to.be.true;
+                });
+
+                // `window` is `globalThis` itself (and non-configurable) in a
+                //   real browser, so this mock can only run in Node.
+                if (typeof window === 'undefined') {
+                    // eslint-disable-next-line mocha/no-conditional-tests -- Node-only mock
+                    it('should fall back to an empty message for the mocked browser `ErrorEvent` when the thrown error has none', function () {
+                        /** @type {string|undefined} */
+                        let receivedMessage;
+                        Object.defineProperties(globalThis, {
+                            window: {
+                                configurable: true,
+                                value: {
+                                    /** @param {{message: string}} errEv */
+                                    dispatchEvent (errEv) {
+                                        receivedMessage = errEv.message;
+                                    }
+                                }
+                            },
+                            ErrorEvent: {
+                                configurable: true,
+                                /** Mock `ErrorEvent` capturing the `message` option for assertion. */
+                                value: class MockErrorEvent {
+                                    /**
+                                     * @param {string} type
+                                     * @param {{message?: string}} [options]
+                                     */
+                                    constructor (type, options) {
+                                        this.type = type;
+                                        this.message = (options || {}).message;
+                                    }
+                                }
+                            }
+                        });
+                        const target = mixinEventTarget({});
+                        target.tryCatch(asEventWithProps(newEvent('start')), function () {
+                            // eslint-disable-next-line unicorn/error-message -- Testing the empty-message fallback
+                            throw new Error('');
+                        });
+                        Reflect.deleteProperty(globalThis, 'window');
+                        Reflect.deleteProperty(globalThis, 'ErrorEvent');
+                        expect(receivedMessage).to.equal('');
+                    });
+                }
+            });
+        }
     });
 });
